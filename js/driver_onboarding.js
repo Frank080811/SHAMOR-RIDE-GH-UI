@@ -176,11 +176,14 @@ async function submitDriver() {
     }
   }
 
-  const photos = document.getElementById("car_photos")?.files;
-  if (!photos || photos.length < 2) {
-    alert("Please upload vehicle front and back photos");
+  const front = document.getElementById("vehicle_front")?.files?.[0];
+  const back = document.getElementById("vehicle_back")?.files?.[0];
+  
+  if (!front || !back) {
+    alert("Please upload both vehicle front and back photos");
     return;
   }
+  
 
   /* ---------- FORM DATA ---------- */
   const form = new FormData();
@@ -212,8 +215,9 @@ async function submitDriver() {
   appendFile(form, "tax_file");
   appendFile(form, "selfie_file", "selfie");
 
-  form.append("vehicle_front", photos[0]);
-  form.append("vehicle_back", photos[1]);
+  form.append("vehicle_front", front);
+  form.append("vehicle_back", back);
+  
 
   /* ---------- UPLOAD ---------- */
   await uploadWithProgress(form);

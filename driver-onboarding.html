@@ -214,11 +214,18 @@ button {
   <div class="section">
 
     <!-- 🚗 VEHICLE PHOTOS (REQUIRED) -->
-    <div class="file" onclick="pick('car_photos')">
-      Vehicle Photos (Front & Back) <span style="color:#ef4444">*</span>
-      <input id="car_photos" type="file" multiple accept="image/*" onchange="fileStatus(this)">
+    <div class="file" onclick="pick('vehicle_front')">
+      Vehicle Front Photo <span style="color:#ef4444">*</span>
+      <input id="vehicle_front" type="file" accept="image/*" onchange="fileStatus(this)">
       <div class="file-status"></div>
     </div>
+    
+    <div class="file" onclick="pick('vehicle_back')">
+      Vehicle Back Photo <span style="color:#ef4444">*</span>
+      <input id="vehicle_back" type="file" accept="image/*" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+    
 
     <div class="file" onclick="pick('insurance_file')">
       Insurance Certificate
