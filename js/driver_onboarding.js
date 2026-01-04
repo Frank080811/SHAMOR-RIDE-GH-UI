@@ -21,6 +21,28 @@ function auth() {
   };
 }
 
+// ===============================
+// FILE PICKERS
+// ===============================
+window.pick = function (id) {
+  const input = document.getElementById(id);
+  if (input) input.click();
+};
+
+window.fileStatus = function (input) {
+  const status = input.parentElement.querySelector(".file-status");
+  if (!status) return;
+
+  if (input.files && input.files.length > 0) {
+    status.textContent = `✔ ${input.files.length} file(s) selected`;
+    status.className = "file-status ok";
+  } else {
+    status.textContent = "No file selected";
+    status.className = "file-status err";
+  }
+};
+
+
 /* ===============================
    INIT — RESUME / REDIRECT
 ================================ */
