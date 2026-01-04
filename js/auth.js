@@ -1,6 +1,6 @@
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded");
+console.log("auth.js loaded — v2");
 
 // =========================
 // HELPERS
@@ -17,8 +17,18 @@ function parseJwt(token) {
   }
 }
 
+async function safeJson(res) {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 // =========================
-// GLOBAL FUNCTIONS (for HTML)
+// UI HELPERS
 // =========================
 window.togglePassword = (id) => {
   const el = get(id);
@@ -40,9 +50,6 @@ window.showSignup = () => {
 // =========================
 // LOGIN
 // =========================
-// =========================
-// LOGIN
-// =========================
 window.login = async () => {
   const email = get("loginEmail").value.trim();
   const password = get("loginPassword").value;
@@ -52,16 +59,27 @@ window.login = async () => {
     return;
   }
 
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    alert("Network error");
+    return;
+  }
 
-  const data = await res.json();
+  const data = await safeJson(res);
 
   if (!res.ok) {
-    alert(data.detail || "Login failed");
+    alert(data?.detail || "Login failed");
+    return;
+  }
+
+  if (!data?.access_token) {
+    alert("Invalid server response");
     return;
   }
 
@@ -71,39 +89,18 @@ window.login = async () => {
   const payload = parseJwt(data.access_token);
   const role = payload?.role;
 
-  // 👇 DRIVER GUARD
   if (role === "driver") {
     const statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
-      headers: {
-        Authorization: `Bearer ${data.access_token}`,
-      },
+      headers: { Authorization: `Bearer ${data.access_token}` },
     });
 
-    const statusData = await statusRes.json();
-    const status = statusData.status;
+    const statusData = await safeJson(statusRes);
+    const status = statusData?.status;
 
-    if (status === "not_started") {
-      location.href = "driver-onboarding.html";
-      return;
-    }
-
-    if (status === "pending") {
-      location.href = "driver-pending.html";
-      return;
-    }
-
-    if (status === "rejected") {
-      location.href = "driver-rejected.html";
-      return;
-    }
-
-    if (status === "approved") {
-      location.href = "driver.html";
-      return;
-    }
-
-    // fallback safety
-    location.href = "driver-onboarding.html";
+    if (status === "approved") location.href = "driver.html";
+    else if (status === "pending") location.href = "driver-pending.html";
+    else if (status === "rejected") location.href = "driver-rejected.html";
+    else location.href = "driver-onboarding.html";
     return;
   }
 
@@ -129,16 +126,22 @@ window.signup = async () => {
     return;
   }
 
-  const res = await fetch(`${API_BASE}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, full_name, password, role }),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, full_name, password, role }),
+    });
+  } catch {
+    alert("Network error");
+    return;
+  }
 
-  const data = await res.json();
+  const data = await safeJson(res);
 
   if (!res.ok) {
-    alert(data.detail || "Signup failed");
+    alert(data?.detail || "Signup failed");
     return;
   }
 
