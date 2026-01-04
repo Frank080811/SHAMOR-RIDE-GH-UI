@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Driver Onboarding | Shamor Rides</title>
+
+<style>
+:root {
+  --primary: #7c5cff;
+  --bg: #0f1220;
+  --glass: rgba(255,255,255,0.08);
+  --text: #eaeaff;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1a1f45, var(--bg));
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border-radius: 20px;
+  padding: 1.5rem;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.step {
+  display: none;
+}
+
+.step.active {
+  display: block;
+}
+
+input, select {
+  width: 100%;
+  padding: 0.9rem;
+  border-radius: 12px;
+  border: none;
+  margin-bottom: 0.8rem;
+}
+
+label {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+button {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 14px;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary {
+  background: #333;
+  margin-top: 0.4rem;
+}
+
+.progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+.progress div {
+  flex: 1;
+  height: 6px;
+  background: #333;
+  border-radius: 999px;
+}
+
+.progress div.active {
+  background: var(--primary);
+}
+
+.notice {
+  font-size: 0.9rem;
+  text-align: center;
+  opacity: 0.9;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>🚗 Driver Onboarding</h2>
+
+  <div class="progress">
+    <div class="active"></div>
+    <div></div>
+    <div></div>
+  </div>
+
+  <!-- STEP 1: PERSONAL -->
+  <div class="step active">
+    <label>Full Name</label>
+    <input id="name" placeholder="John Doe" />
+
+    <label>Phone Number</label>
+    <input id="phone" placeholder="+233..." />
+
+    <button onclick="nextStep()">Next</button>
+  </div>
+
+  <!-- STEP 2: VEHICLE -->
+  <div class="step">
+    <label>Vehicle Brand</label>
+    <input id="vehicle" placeholder="Toyota Corolla" />
+
+    <label>Plate Number</label>
+    <input id="plate" placeholder="GT-123-22" />
+
+    <label>Vehicle Color</label>
+    <input id="color" placeholder="White" />
+
+    <button onclick="nextStep()">Next</button>
+    <button class="secondary" onclick="prevStep()">Back</button>
+  </div>
+
+  <!-- STEP 3: DOCUMENTS -->
+  <div class="step">
+    <label>Driver License</label>
+    <input type="file" id="license" />
+
+    <label>Insurance Document</label>
+    <input type="file" id="insurance" />
+
+    <label>Vehicle Photo</label>
+    <input type="file" id="vehiclePhoto" />
+
+    <button onclick="submitDriver()">Submit</button>
+    <button class="secondary" onclick="prevStep()">Back</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="step">
+    <h3>✅ Submitted</h3>
+    <p class="notice">
+      Your profile is under review.<br />
+      You will be notified once approved.
+    </p>
+  </div>
+
+  <div class="alert error">
+    ❌ Application rejected: <span id="reason"></span>
+    <button onclick="openReapply()">Fix & Re-Apply</button>
+  </div>  
+
+</div>
+
+<script>
+let current = 0;
+const steps = document.querySelectorAll(".step");
+const dots = document.querySelectorAll(".progress div");
+
+function nextStep() {
+  steps[current].classList.remove("active");
+  dots[current].classList.remove("active");
+  current++;
+  steps[current].classList.add("active");
+  dots[current]?.classList.add("active");
+}
+
+function prevStep() {
+  steps[current].classList.remove("active");
+  dots[current]?.classList.remove("active");
+  current--;
+  steps[current].classList.add("active");
+  dots[current].classList.add("active");
+}
+
+async function submitDriver() {
+  const data = new FormData();
+  data.append("name", document.getElementById("name").value);
+  data.append("phone", document.getElementById("phone").value);
+  data.append("vehicle", document.getElementById("vehicle").value);
+  data.append("plate", document.getElementById("plate").value);
+  data.append("color", document.getElementById("color").value);
+  data.append("license", document.getElementById("license").files[0]);
+  data.append("insurance", document.getElementById("insurance").files[0]);
+  data.append("vehicle_photo", document.getElementById("vehiclePhoto").files[0]);
+
+  // 🔗 BACKEND HOOK (ready)
+  /*
+  await fetch("/drivers/onboard", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("access_token")}`
+    },
+    body: data
+  });
+  */
+
+  nextStep();
+}
+</script>
+
+</body>
+</html>

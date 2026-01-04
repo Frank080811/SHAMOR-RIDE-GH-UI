@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Driver | Shamor Rides</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+:root {
+  --primary:#7c5cff;
+  --primary-dark:#5a3cff;
+  --bg:#0f1220;
+  --glass:rgba(255,255,255,.14);
+  --glass-strong:rgba(255,255,255,.2);
+  --text:#eaeaff;
+  --success:#22c55e;
+  --danger:#ef4444;
+  --shadow:0 20px 40px rgba(0,0,0,.35);
+}
+
+/* ===== RESET ===== */
+* {
+  box-sizing:border-box;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont;
+  -webkit-tap-highlight-color:transparent;
+}
+
+body {
+  margin:0;
+  background:radial-gradient(circle at top,#171a33,#0f1220 60%);
+  color:var(--text);
+  overflow:hidden;
+}
+
+/* ===== HEADER ===== */
+header {
+  padding:1rem;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  text-align:center;
+  font-weight:700;
+  letter-spacing:.3px;
+  box-shadow:0 6px 20px rgba(0,0,0,.35);
+}
+
+/* ===== MAP ===== */
+#map {
+  height:65vh;
+  filter:saturate(1.05) contrast(1.05);
+}
+
+/* ===== BOTTOM SHEET ===== */
+.sheet {
+  position:fixed;
+  bottom:0; left:0; right:0;
+  padding:1rem;
+  background:linear-gradient(180deg,var(--glass-strong),var(--glass));
+  backdrop-filter:blur(22px);
+  border-radius:22px 22px 0 0;
+  box-shadow:var(--shadow);
+  animation:sheetUp .6s cubic-bezier(.25,.8,.25,1);
+}
+
+@keyframes sheetUp {
+  from { transform:translateY(100%); }
+  to { transform:translateY(0); }
+}
+
+/* ===== STATUS ===== */
+.status {
+  font-size:.85rem;
+  opacity:.9;
+  margin-bottom:.6rem;
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+}
+
+.status::before {
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--success);
+  animation:pulse 1.6s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow:0 0 0 0 rgba(34,197,94,.7); }
+  70% { box-shadow:0 0 0 8px rgba(34,197,94,0); }
+  100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
+}
+
+/* ===== CARDS ===== */
+.card {
+  background:linear-gradient(160deg,#15193a,#0f132e);
+  padding:1rem;
+  border-radius:16px;
+  margin-bottom:.6rem;
+  box-shadow:var(--shadow);
+  animation:fadeIn .4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity:0; transform:translateY(8px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* Ride request emphasis */
+#rideCard {
+  border:1px solid rgba(124,92,255,.35);
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  width:100%;
+  padding:1rem;
+  border-radius:16px;
+  border:none;
+  font-weight:700;
+  margin-top:.45rem;
+  cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease, background .2s ease;
+}
+
+.btn:active { transform:scale(.97); }
+.btn:hover { box-shadow:0 10px 25px rgba(0,0,0,.4); }
+
+.accept { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+.reject { background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; }
+.primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; }
+.secondary { background:#1f243f; color:#fff; }
+
+#sosBtn { letter-spacing:.4px; }
+
+/* ===== ETA BAR ===== */
+.eta {
+  width:100%;
+  height:8px;
+  background:rgba(255,255,255,.15);
+  border-radius:10px;
+  overflow:hidden;
+  margin:.6rem 0;
+}
+
+.eta-fill {
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#22c55e,#7c5cff);
+  transition:width .6s ease;
+}
+
+/* ===== TOAST ===== */
+.toast {
+  position:fixed;
+  bottom:90px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#12152a;
+  padding:.8rem 1.2rem;
+  border-radius:14px;
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+  z-index:999;
+  animation:toastUp .4s ease;
+}
+
+@keyframes toastUp {
+  from { opacity:0; transform:translate(-50%,20px); }
+  to { opacity:1; transform:translate(-50%,0); }
+}
+
+/* ===== HISTORY PANEL ===== */
+.history {
+  position:fixed;
+  top:0;
+  right:0;
+  width:80%;
+  max-width:360px;
+  height:100%;
+  background:#0f1220;
+  padding:1rem;
+  box-shadow:-20px 0 40px rgba(0,0,0,.4);
+  z-index:1000;
+  transform:translateX(100%);
+  transition:transform .4s ease;
+}
+
+.history.show {
+  transform:translateX(0);
+}
+
+/* ===== CAR MARKER ===== */
+.car-marker {
+  font-size:28px;
+  transition:transform .4s ease;
+  transform-origin:center;
+}
+
+/* ===== UTIL ===== */
+.hidden { display:none; }
+
+/* ===== MOBILE ===== */
+@media(max-width:380px){
+  .btn { padding:.85rem; }
+  header { font-size:.95rem; }
+}
+</style>
+</head>
+
+<body>
+
+<header>🚗 Driver Dashboard</header>
+<div id="map"></div>
+
+<div class="sheet">
+  <div class="status" id="driverStatus">📡 Online — waiting for rides</div>
+  <hr style="border:none;height:1px;background:rgba(255,255,255,.1);margin:.6rem 0">
+
+  <div id="rideCard" class="card hidden">
+    <div id="rideInfo">New ride request</div>
+    <button id="acceptBtn" class="btn accept">Accept Ride</button>
+    <button id="rejectBtn" class="btn reject">Reject</button>
+  </div>
+
+  <div class="card" style="border:1px solid rgba(255,255,255,.08)">
+    <div id="earningsToday">💰 Today: ₵0.00</div>
+    <div id="earningsTotal">📊 Total: ₵0.00</div>
+  </div>
+
+  <button id="sosBtn" class="btn reject">🚨 SOS</button>
+  <div class="status">⭐ Rating: 4.8</div>
+
+  <button id="startBtn" class="btn primary hidden">Start Trip</button>
+  <button id="endBtn" class="btn secondary hidden">End Trip</button>
+  <button id="toggleOnlineBtn" class="btn secondary">Go Offline</button>
+  <button id="navigateBtn" class="btn primary hidden">Navigate to Pickup</button>
+
+  <div id="etaBar" class="eta hidden">
+    <div class="eta-fill" id="etaFill"></div>
+  </div>
+
+  <button id="historyBtn" class="btn secondary">View History</button>
+</div>
+
+<div id="historyPanel" class="history">
+  <h4>🧾 Ride History</h4>
+  <div id="historyList"></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module" src="./js/driver.js"></script>
+
+</body>
+</html>

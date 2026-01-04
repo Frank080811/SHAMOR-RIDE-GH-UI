@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Application Under Review | Shamor Rides</title>
+
+<style>
+body {
+  margin:0;
+  min-height:100vh;
+  background:#070b18;
+  color:#eaeaff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:system-ui;
+}
+.card {
+  max-width:420px;
+  padding:2.4rem;
+  background:rgba(255,255,255,.08);
+  border-radius:22px;
+  text-align:center;
+  box-shadow:0 40px 120px rgba(0,0,0,.55);
+}
+h1 { margin-bottom:.8rem; }
+p { color:#aab0ff; font-size:.95rem; }
+.badge {
+  display:inline-block;
+  margin:1.4rem 0;
+  padding:.5rem 1rem;
+  border-radius:999px;
+  background:#7c5cff;
+  font-weight:700;
+}
+button {
+  margin-top:1.6rem;
+  padding:.8rem 1.4rem;
+  border-radius:999px;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+.logout {
+  background:transparent;
+  color:#aab0ff;
+}
+</style>
+</head>
+
+<body>
+<div class="card">
+  <h1>⏳ Application Under Review</h1>
+  <span class="badge">Pending Approval</span>
+
+  <p>
+    You’ve successfully completed driver onboarding.<br>
+    Our compliance team is reviewing your documents.
+  </p>
+
+  <p>
+    This usually takes <strong>24–48 hours</strong>.
+    You’ll be notified by email once approved.
+  </p>
+
+  <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<script type="module">
+import { enforceDriverFlow } from "./js/driver_guard.js";
+enforceDriverFlow();
+
+window.logout = () => {
+  localStorage.clear();
+  location.href = "auth.html";
+};
+</script>
+</body>
+</html>

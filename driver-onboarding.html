@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Driver Onboarding | Shamor Rides</title>
+
+<style>
+:root {
+  --bg:#070b18;
+  --glass:rgba(255,255,255,.08);
+  --glass-border:rgba(255,255,255,.18);
+  --primary:#7c5cff;
+  --primary-glow:rgba(124,92,255,.45);
+  --text:#eaeaff;
+  --muted:#aab0ff;
+  --ok:#22c55e;
+  --err:#ef4444;
+}
+
+* { box-sizing:border-box; font-family:system-ui,sans-serif; }
+
+body {
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(600px at 50% -10%, rgba(124,92,255,.25), transparent),
+    radial-gradient(circle at top,#1a1f4a,var(--bg));
+  color:var(--text);
+}
+
+header {
+  padding:1.2rem;
+  text-align:center;
+  background:var(--glass);
+  border-bottom:1px solid var(--glass-border);
+  backdrop-filter:blur(16px);
+}
+
+.wrapper {
+  max-width:780px;
+  margin:2.5rem auto;
+  padding:2.5rem;
+  background:var(--glass);
+  border-radius:26px;
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(22px);
+}
+
+.progress {
+  display:flex;
+  gap:.5rem;
+  margin-bottom:2rem;
+}
+.progress div {
+  flex:1;
+  height:7px;
+  background:#1a1f4a;
+  border-radius:999px;
+}
+.progress span {
+  display:block;
+  height:100%;
+  width:0;
+  background:linear-gradient(135deg,#7c5cff,#5a3cff);
+  border-radius:999px;
+  transition:.4s;
+}
+
+h1 { text-align:center; }
+.sub { text-align:center; color:var(--muted); margin-bottom:2rem; }
+
+.step { display:none; }
+.step.active { display:block; }
+
+.section {
+  margin-bottom:2.5rem;
+}
+
+.field {
+  margin-bottom:1.25rem;
+}
+
+label {
+  font-size:.75rem;
+  color:var(--muted);
+}
+
+input, select, textarea {
+  width:100%;
+  padding:.9rem 1rem;
+  border-radius:14px;
+  background:#11152a;
+  border:none;
+  color:var(--text);
+  margin-top:.35rem;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline:none;
+  box-shadow:0 0 0 2px var(--primary-glow);
+}
+
+.file {
+  border:1px dashed var(--glass-border);
+  border-radius:14px;
+  padding:1rem;
+  margin-bottom:1.25rem;
+}
+
+.file input { display:none; }
+
+.file-status {
+  font-size:.75rem;
+  margin-top:.35rem;
+}
+
+.ok { color:var(--ok); }
+.err { color:var(--err); }
+
+.actions {
+  display:flex;
+  justify-content:space-between;
+  margin-top:2.5rem;
+}
+
+button {
+  padding:.9rem 1.6rem;
+  border-radius:999px;
+  border:none;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.primary {
+  background:linear-gradient(135deg,#7c5cff,#5a3cff);
+  color:white;
+}
+
+.ghost {
+  background:none;
+  color:var(--muted);
+}
+
+.trust {
+  text-align:center;
+  font-size:.75rem;
+  color:var(--muted);
+  margin-top:2rem;
+}
+</style>
+</head>
+
+<body>
+
+<header>🚕 <strong>Shamor Rides</strong> · Driver Verification</header>
+
+<div class="wrapper">
+
+<div class="progress">
+  <div><span></span></div>
+  <div><span></span></div>
+  <div><span></span></div>
+  <div><span></span></div>
+</div>
+
+<h1>Become a Shamor Driver</h1>
+<p class="sub">Complete verification to start earning</p>
+
+<!-- STEP 1 -->
+<div class="step active">
+  <div class="section">
+    <div class="field"><label>Phone</label><input id="phone"></div>
+    <div class="field"><label>Address</label><textarea id="address"></textarea></div>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div class="step">
+  <div class="section">
+    <div class="field"><label>Ghana Card Number</label><input id="ghana_card"></div>
+    <div class="field"><label>License Number</label><input id="license_number"></div>
+    <div class="field"><label>License Expiry</label><input type="date" id="license_expiry"></div>
+
+    <div class="file" onclick="pick('ghana_card_file')">
+      Upload Ghana Card
+      <input id="ghana_card_file" type="file" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+
+    <div class="file" onclick="pick('license_file')">
+      Upload Driver License
+      <input id="license_file" type="file" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div class="step">
+  <div class="section">
+    <div class="field"><label>Vehicle Model</label><input id="vehicle_model"></div>
+    <div class="field"><label>Vehicle Year</label><input id="vehicle_year"></div>
+    <div class="field"><label>Vehicle Type</label>
+      <select id="vehicle_type">
+        <option value="">Select</option>
+        <option>Saloon</option>
+        <option>SUV</option>
+        <option>Van</option>
+      </select>
+    </div>
+    <div class="field"><label>Plate Number</label><input id="plate"></div>
+
+    <div class="file" onclick="pick('car_photos')">
+      Vehicle Photos (Front & Back)
+      <input id="car_photos" type="file" multiple onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 4 -->
+<div class="step">
+  <div class="section">
+    <div class="file" onclick="pick('insurance_file')">
+      Insurance Certificate
+      <input id="insurance_file" type="file" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+
+    <div class="file" onclick="pick('tax_file')">
+      Income Tax Certificate
+      <input id="tax_file" type="file" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+
+    <div class="file" onclick="pick('selfie_file')">
+      Selfie Photo
+      <input id="selfie_file" type="file" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+
+    <div class="field"><label>Next of Kin</label><input id="kin_name"></div>
+    <div class="field"><label>Relationship</label><input id="kin_relation"></div>
+    <div class="field"><label>Phone</label><input id="kin_phone"></div>
+  </div>
+</div>
+
+<div id="uploadStatus" style="display:none;margin-top:1.5rem;">
+  <div style="font-size:.8rem;color:#aab0ff;margin-bottom:.4rem">
+    Uploading documents…
+  </div>
+  <div style="background:#1a1f4a;border-radius:999px;overflow:hidden;height:10px">
+    <div
+      id="uploadBar"
+      style="
+        height:100%;
+        width:0%;
+        background:linear-gradient(135deg,#7c5cff,#5a3cff);
+        transition:width .2s ease;
+      "
+    ></div>
+  </div>
+</div>
+
+
+<div class="actions">
+  <button class="ghost" onclick="prev()">Back</button>
+  <button class="primary" onclick="next()">Continue</button>
+</div>
+
+<p class="trust">🔒 Documents are encrypted & reviewed</p>
+
+</div>
+
+<script type="module" src="./js/driver-onboarding.js"></script>
+
+</body>
+</html>

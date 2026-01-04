@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Auth | Shamor-Rides</title>
+
+<style>
+:root {
+  --bg: #070b18;
+  --glass: rgba(255,255,255,0.08);
+  --glass-border: rgba(255,255,255,0.18);
+  --primary: #7c5cff;
+  --text: #eaeaff;
+  --muted: #aab0ff;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1a1f4a, var(--bg));
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--glass);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+}
+
+.brand {
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.brand span { color: var(--primary); }
+
+.tabs {
+  display: flex;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  margin-bottom: 2rem;
+}
+
+.tabs button {
+  flex: 1;
+  padding: 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: linear-gradient(135deg,#7c5cff,#5a3cff);
+  border-radius: 999px;
+}
+
+.form { display: none; }
+.form.active { display: block; }
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 14px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+  margin-top: 0.3rem;
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap span {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.btn {
+  width: 100%;
+  padding: 0.9rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg,#7c5cff,#5a3cff);
+  color: white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="auth-card">
+  <div class="brand">🚕 <span>Shamor</span>-Rides</div>
+
+  <div class="tabs">
+    <button id="loginTab" class="active">Login</button>
+    <button id="signupTab">Sign Up</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="loginForm" class="form active">
+    <div class="field">
+      <label>Email</label>
+      <input id="loginEmail" type="email">
+    </div>
+
+    <div class="field password-wrap">
+      <label>Password</label>
+      <input id="loginPassword" type="password">
+      <span onclick="togglePassword('loginPassword')">👁</span>
+    </div>
+
+    <button class="btn" onclick="login()">Login</button>
+  </div>
+
+  <!-- SIGNUP -->
+  <div id="signupForm" class="form">
+    <div class="field">
+      <label>Full Name</label>
+      <input id="full_name">
+    </div>
+
+    <div class="field">
+      <label>Email</label>
+      <input id="email" type="email">
+    </div>
+
+    <div class="field password-wrap">
+      <label>Password</label>
+      <input id="password" type="password">
+      <span onclick="togglePassword('password')">👁</span>
+    </div>
+
+    <div class="field">
+      <label>Role</label>
+      <select id="role">
+        <option value="rider">Rider</option>
+        <option value="driver">Driver</option>
+      </select>
+    </div>
+
+    <button class="btn" onclick="signup()">Create Account</button>
+  </div>
+</div>
+
+<script type="module">
+import { API_BASE } from "./js/config.js";
+
+/* =========================
+   UTILITIES
+========================= */
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
+
+window.togglePassword = (id) => {
+  const el = document.getElementById(id);
+  if (el) el.type = el.type === "password" ? "text" : "password";
+};
+
+/* =========================
+   LOGIN
+========================= */
+window.login = async () => {
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value;
+
+  if (!email || !password) {
+    alert("Email and password required");
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.detail || "Login failed");
+    return;
+  }
+
+  localStorage.setItem("access_token", data.access_token);
+  localStorage.setItem("refresh_token", data.refresh_token);
+
+  const payload = parseJwt(data.access_token);
+  const role = payload?.role;
+
+  if (role === "driver") {
+    const statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
+      headers: { Authorization: `Bearer ${data.access_token}` }
+    });
+
+    const statusData = await statusRes.json();
+    const status = String(statusData.status).toLowerCase();
+
+    if (status.includes("not_started") || status.includes("in_progress")) {
+      location.href = "driver-onboarding.html";
+      return;
+    }
+
+    if (status.includes("pending")) {
+      location.href = "driver-pending.html";
+      return;
+    }
+
+    if (status.includes("rejected")) {
+      location.href = "driver-rejected.html";
+      return;
+    }
+
+    if (status.includes("approved")) {
+      location.href = "driver.html";
+      return;
+    }
+
+    // HARD BLOCK — NEVER allow fallback to driver.html
+    location.href = "driver-onboarding.html";
+    return;
+  }
+
+  if (role === "admin") {
+    location.href = "admin.html";
+    return;
+  }
+
+  location.href = "rider.html";
+};
+
+/* =========================
+   SIGNUP
+========================= */
+window.signup = async () => {
+  const email = emailInput.value?.trim();
+  const full_name = full_nameInput.value?.trim();
+  const password = passwordInput.value;
+  const role = roleSelect.value;
+
+  if (!email || !full_name || !password) {
+    alert("All fields required");
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, full_name, password, role })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.detail || "Signup failed");
+    return;
+  }
+
+  alert("Account created! Check email for verification.");
+};
+</script>
+
+</body>
+</html>

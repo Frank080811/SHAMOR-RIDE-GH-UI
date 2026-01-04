@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shamor Admin Dashboard</title>
+
+<style>
+:root {
+  --primary:#7c5cff;
+  --bg:#0f1220;
+  --glass:rgba(255,255,255,.08);
+  --text:#eaeaff;
+  --danger:#ef4444;
+  --success:#22c55e;
+}
+
+* {
+  box-sizing:border-box;
+  font-family:system-ui,sans-serif;
+}
+
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* ===== LAYOUT ===== */
+.container {
+  padding:1.5rem;
+  max-width:1200px;
+  margin:auto;
+}
+
+/* ===== HEADER ===== */
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:1.5rem;
+}
+
+header h1 {
+  font-size:1.4rem;
+}
+
+/* ===== STATS ===== */
+.stats {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:1rem;
+  margin-bottom:2rem;
+}
+
+.stat {
+  background:var(--glass);
+  padding:1.2rem;
+  border-radius:16px;
+  backdrop-filter:blur(12px);
+}
+
+/* ===== CARD ===== */
+.card {
+  background:var(--glass);
+  padding:1rem;
+  border-radius:16px;
+  backdrop-filter:blur(12px);
+}
+
+/* ===== TABLE ===== */
+table {
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td {
+  padding:.75rem;
+  font-size:.9rem;
+}
+
+th {
+  opacity:.8;
+}
+
+tr:not(:last-child) {
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+/* ===== BADGES ===== */
+.badge {
+  padding:.25rem .6rem;
+  border-radius:8px;
+  font-size:.75rem;
+}
+
+.pending { background:#f59e0b; color:black; }
+.approved { background:var(--success); color:black; }
+.rejected { background:var(--danger); color:white; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding:.4rem .7rem;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+  font-size:.85rem;
+}
+
+.approve {
+  background:var(--success);
+  color:black;
+}
+
+.reject {
+  background:var(--danger);
+  color:white;
+  margin-left:.3rem;
+}
+
+.view {
+  background:#1f2937;
+  color:white;
+}
+
+/* ===== MODAL ===== */
+.modal {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.65);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+
+.modal-content {
+  background:var(--bg);
+  padding:1.5rem;
+  border-radius:16px;
+  width:90%;
+  max-width:480px;
+}
+
+.modal-content textarea {
+  width:100%;
+  height:90px;
+  margin-top:.5rem;
+  border-radius:10px;
+  border:none;
+  padding:.6rem;
+}
+
+.modal-content button {
+  width:100%;
+  margin-top:.8rem;
+  padding:.7rem;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+  <h1>🧑‍💼 Shamor Admin Dashboard</h1>
+  <button class="btn reject" onclick="logout()">Logout</button>
+</header>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <h3>Total Users</h3>
+    <p id="usersCount">–</p>
+  </div>
+  <div class="stat">
+    <h3>Total Rides</h3>
+    <p id="ridesCount">–</p>
+  </div>
+  <div class="stat">
+    <h3>Pending Drivers</h3>
+    <p id="driversCount">–</p>
+  </div>
+</div>
+
+<!-- DRIVER APPLICATIONS -->
+<div class="card">
+  <h3>🚗 Driver Verification Queue</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Vehicle</th>
+        <th>Plate</th>
+        <th>Docs</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="driversTable"></tbody>
+  </table>
+</div>
+
+</div>
+
+<!-- DOCUMENT MODAL -->
+<div class="modal" id="docsModal">
+  <div class="modal-content">
+    <h3>📄 Driver Documents</h3>
+    <div id="docsContent"></div>
+    <button class="btn view" onclick="closeDocs()">Close</button>
+  </div>
+</div>
+
+<!-- REJECT MODAL -->
+<div class="modal" id="rejectModal">
+  <div class="modal-content">
+    <h3>Reject Driver</h3>
+    <textarea id="rejectReason" placeholder="Reason for rejection"></textarea>
+    <button class="btn reject" onclick="submitReject()">Submit</button>
+  </div>
+</div>
+<script type="module" src="/js/admin.js"></script>
+
+</body>
+</html>

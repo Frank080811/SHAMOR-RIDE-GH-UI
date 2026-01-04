@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Admin – Driver Reviews</title>
+
+<style>
+body {
+  background:#0b1020;
+  color:#fff;
+  font-family:system-ui;
+  margin:0;
+}
+.container {
+  max-width:1100px;
+  margin:2rem auto;
+}
+.card {
+  background:#121833;
+  padding:1.2rem;
+  border-radius:14px;
+  margin-bottom:1rem;
+}
+.actions button {
+  margin-right:.5rem;
+}
+button {
+  padding:.5rem 1rem;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+}
+.approve { background:#22c55e; }
+.reject { background:#ef4444; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>🚦 Pending Driver Applications</h1>
+  <div id="list"></div>
+</div>
+
+<script type="module" src="/js/admin-drivers.js"></script>
+</body>
+</html>
