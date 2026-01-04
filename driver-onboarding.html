@@ -73,13 +73,9 @@ h1 { text-align:center; }
 .step { display:none; }
 .step.active { display:block; }
 
-.section {
-  margin-bottom:2.5rem;
-}
+.section { margin-bottom:2.5rem; }
 
-.field {
-  margin-bottom:1.25rem;
-}
+.field { margin-bottom:1.25rem; }
 
 label {
   font-size:.75rem;
@@ -196,7 +192,7 @@ button {
   </div>
 </div>
 
-<!-- STEP 3 -->
+<!-- STEP 3 (NO VEHICLE PHOTOS HERE ANYMORE) -->
 <div class="step">
   <div class="section">
     <div class="field"><label>Vehicle Model</label><input id="vehicle_model"></div>
@@ -210,18 +206,20 @@ button {
       </select>
     </div>
     <div class="field"><label>Plate Number</label><input id="plate"></div>
-
-    <div class="file" onclick="pick('car_photos')">
-      Vehicle Photos (Front & Back)
-      <input id="car_photos" type="file" multiple onchange="fileStatus(this)">
-      <div class="file-status"></div>
-    </div>
   </div>
 </div>
 
-<!-- STEP 4 -->
+<!-- STEP 4 (ALL UPLOADS TOGETHER) -->
 <div class="step">
   <div class="section">
+
+    <!-- 🚗 VEHICLE PHOTOS (REQUIRED) -->
+    <div class="file" onclick="pick('car_photos')">
+      Vehicle Photos (Front & Back) <span style="color:#ef4444">*</span>
+      <input id="car_photos" type="file" multiple accept="image/*" onchange="fileStatus(this)">
+      <div class="file-status"></div>
+    </div>
+
     <div class="file" onclick="pick('insurance_file')">
       Insurance Certificate
       <input id="insurance_file" type="file" onchange="fileStatus(this)">
@@ -243,6 +241,7 @@ button {
     <div class="field"><label>Next of Kin</label><input id="kin_name"></div>
     <div class="field"><label>Relationship</label><input id="kin_relation"></div>
     <div class="field"><label>Phone</label><input id="kin_phone"></div>
+
   </div>
 </div>
 
@@ -251,18 +250,11 @@ button {
     Uploading documents…
   </div>
   <div style="background:#1a1f4a;border-radius:999px;overflow:hidden;height:10px">
-    <div
-      id="uploadBar"
-      style="
-        height:100%;
-        width:0%;
-        background:linear-gradient(135deg,#7c5cff,#5a3cff);
-        transition:width .2s ease;
-      "
-    ></div>
+    <div id="uploadBar"
+      style="height:100%;width:0%;background:linear-gradient(135deg,#7c5cff,#5a3cff);">
+    </div>
   </div>
 </div>
-
 
 <div class="actions">
   <button class="ghost" onclick="prev()">Back</button>
@@ -274,6 +266,5 @@ button {
 </div>
 
 <script type="module" src="/js/driver_onboarding.js"></script>
-
 </body>
 </html>
