@@ -1,10 +1,10 @@
 // js/config.js
 
 // ===== API BASE URL =====
-export const API_BASE = "https://shamor-rides-frontend.onrender.com";
+export const API_BASE = "https://shamor-ride-gh.onrender.com";
 
 // js/config.js
-export const API_BASE_URL = "https://shamor-rides-frontend.onrender.com";
+export const API_BASE_URL = "https://shamor-ride-gh.onrender.com";
 
 
 // ===== WEBSOCKET BASE URL =====
