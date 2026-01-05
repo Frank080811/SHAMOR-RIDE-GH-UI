@@ -2,45 +2,187 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin – Driver Reviews</title>
 
 <style>
+:root {
+  --bg:#0b1020;
+  --panel:#121833;
+  --muted:#9aa3ff;
+  --ok:#22c55e;
+  --err:#ef4444;
+  --warn:#facc15;
+}
+
+* { box-sizing:border-box; font-family:system-ui; }
+
 body {
-  background:#0b1020;
-  color:#fff;
-  font-family:system-ui;
   margin:0;
+  background:var(--bg);
+  color:#fff;
 }
+
 .container {
-  max-width:1100px;
+  max-width:1200px;
   margin:2rem auto;
+  padding:0 1rem;
 }
+
+h1 { margin-bottom:1rem; }
+
 .card {
-  background:#121833;
-  padding:1.2rem;
-  border-radius:14px;
+  background:var(--panel);
+  border-radius:16px;
+  padding:1rem;
   margin-bottom:1rem;
 }
-.actions button {
-  margin-right:.5rem;
+
+.driver-row {
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:1rem;
+  align-items:center;
 }
+
+.badge {
+  padding:.3rem .6rem;
+  border-radius:999px;
+  font-size:.7rem;
+}
+
+.pending { background:var(--warn); color:#000; }
+
 button {
-  padding:.5rem 1rem;
-  border-radius:8px;
   border:none;
+  border-radius:8px;
+  padding:.5rem .9rem;
   cursor:pointer;
 }
-.approve { background:#22c55e; }
-.reject { background:#ef4444; }
+
+.view { background:#6366f1; color:#fff; }
+.approve { background:var(--ok); }
+.reject { background:var(--err); color:#fff; }
+
+/* ===== MODAL ===== */
+.modal {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+
+.modal.active { display:flex; }
+
+.modal-box {
+  background:#0f1535;
+  width:95%;
+  max-width:1100px;
+  height:85vh;
+  border-radius:18px;
+  display:grid;
+  grid-template-columns:340px 1fr;
+  overflow:hidden;
+}
+
+/* LEFT */
+.sidebar {
+  padding:1rem;
+  border-right:1px solid #1f2555;
+}
+
+.sidebar h3 { margin-top:0; }
+
+.info p {
+  font-size:.85rem;
+  color:var(--muted);
+  margin:.3rem 0;
+}
+
+/* RIGHT */
+.docs {
+  padding:1rem;
+  overflow-y:auto;
+}
+
+.doc {
+  margin-bottom:1.5rem;
+}
+
+.doc h4 {
+  font-size:.85rem;
+  margin-bottom:.4rem;
+}
+
+.doc img, .doc iframe {
+  width:100%;
+  border-radius:12px;
+  border:1px solid #1f2555;
+}
+
+/* FOOTER ACTIONS */
+.actions {
+  position:sticky;
+  bottom:0;
+  background:#0f1535;
+  padding:1rem;
+  display:flex;
+  justify-content:flex-end;
+  gap:.6rem;
+  border-top:1px solid #1f2555;
+}
+
+textarea {
+  width:100%;
+  border-radius:10px;
+  padding:.6rem;
+  background:#11152a;
+  color:#fff;
+  border:none;
+}
 </style>
 </head>
 
 <body>
+
 <div class="container">
   <h1>🚦 Pending Driver Applications</h1>
   <div id="list"></div>
 </div>
 
+<!-- REVIEW MODAL -->
+<div id="modal" class="modal">
+  <div class="modal-box">
+
+    <!-- LEFT -->
+    <div class="sidebar">
+      <h3 id="dName">Driver</h3>
+      <div class="info">
+        <p id="dPhone"></p>
+        <p id="dVehicle"></p>
+        <p id="dPlate"></p>
+      </div>
+
+      <hr />
+
+      <label>Rejection Reason</label>
+      <textarea id="rejectReason" rows="4"></textarea>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="docs" id="docs"></div>
+
+    <!-- ACTIONS -->
+    <div class="actions">
+      <button class="approve" onclick="approve()">Approve</button>
+      <button class="reject" onclick="reject()">Reject</button>
+      <button onclick="closeModal()">Close</button>
+    </div>
+
+  </div>
+</div>
 <script type="module" src="/js/admin.js"></script>
 </body>
 </html>

@@ -85,7 +85,7 @@ async function loadDrivers() {
 }
 
 /* =========================
-   VIEW DOCUMENTS
+   VIEW DOCUMENTS (SCROLLABLE)
 ========================= */
 async function viewDocs(userId) {
   try {
@@ -97,13 +97,17 @@ async function viewDocs(userId) {
     if (!res.ok) throw new Error("Failed to load documents");
 
     const docs = await res.json();
+    docsContent.innerHTML = "";
 
-    docsContent.innerHTML = `
-      <p>🪪 Ghana Card: ${docs.ghana_card ? "✔ Uploaded" : "❌ Missing"}</p>
-      <p>🚘 Driver License: ${docs.license ? "✔ Uploaded" : "❌ Missing"}</p>
-      <p>🧾 Insurance: ${docs.insurance ? "✔ Uploaded" : "❌ Missing"}</p>
-      <p>🚗 Vehicle Photos: ${docs.vehicle_photos?.length || 0}</p>
-    `;
+    renderDoc("Ghana Card", docs.ghana_card);
+    renderDoc("Driver License", docs.license);
+    renderDoc("Insurance", docs.insurance);
+
+    if (Array.isArray(docs.vehicle_photos)) {
+      docs.vehicle_photos.forEach((url, i) =>
+        renderDoc(`Vehicle Photo ${i + 1}`, url)
+      );
+    }
 
     docsModal.style.display = "flex";
   } catch (err) {
@@ -112,8 +116,29 @@ async function viewDocs(userId) {
   }
 }
 
+function renderDoc(title, url) {
+  if (!url) {
+    docsContent.innerHTML += `<p>❌ ${title}: Missing</p>`;
+    return;
+  }
+
+  const isPdf = url.endsWith(".pdf");
+
+  docsContent.innerHTML += `
+    <div style="margin-bottom:1rem">
+      <h4>${title}</h4>
+      ${
+        isPdf
+          ? `<iframe src="${url}" style="width:100%;height:420px;border-radius:10px"></iframe>`
+          : `<img src="${url}" style="width:100%;border-radius:10px" loading="lazy" />`
+      }
+    </div>
+  `;
+}
+
 function closeDocs() {
   docsModal.style.display = "none";
+  docsContent.innerHTML = "";
 }
 
 /* =========================
@@ -164,7 +189,10 @@ async function submitReject() {
       `${API_BASE_URL}/admin/drivers/${rejectDriverId}/reject`,
       {
         method: "POST",
-        headers: auth(),
+        headers: {
+          ...auth(),
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ reason }),
       }
     );
