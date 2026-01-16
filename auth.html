@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Auth | Shamor-Rides</title>
+<title>Auth | Shamor Rides</title>
 
 <style>
 :root {
@@ -11,19 +11,22 @@
   --glass: rgba(255,255,255,0.08);
   --glass-border: rgba(255,255,255,0.18);
   --primary: #7c5cff;
+  --primary-dark: #5a3cff;
   --text: #eaeaff;
   --muted: #aab0ff;
 }
 
 * {
   box-sizing: border-box;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at top, #1a1f4a, var(--bg));
+  background: linear-gradient(-45deg, #1a1f4a, #070b18, #2a1f6a, #070b18);
+  background-size: 400% 400%;
+  animation: bgMove 18s ease infinite;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -31,15 +34,37 @@ body {
   padding: 1.5rem;
 }
 
+@keyframes bgMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .auth-card {
   width: 100%;
   max-width: 480px;
   background: var(--glass);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 2.5rem 2rem;
+  border-radius: 26px;
+  padding: 2.8rem 2.2rem;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+  transition: transform .3s ease, box-shadow .3s ease;
 }
+
+.auth-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 40px 90px rgba(0,0,0,0.6);
+}
+
+.brand {
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 1.8rem;
+}
+
+.brand span { color: var(--primary); }
 
 .tabs {
   display: flex;
@@ -50,47 +75,72 @@ body {
 
 .tabs button {
   flex: 1;
-  padding: 0.6rem;
+  padding: 0.7rem;
   border: none;
   background: transparent;
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
+  transition: background .3s;
 }
 
 .tabs button.active {
-  background: linear-gradient(135deg,#7c5cff,#5a3cff);
+  background: linear-gradient(135deg,var(--primary),var(--primary-dark));
   border-radius: 999px;
 }
 
 .form { display: none; }
 .form.active { display: block; }
 
-.field { margin-bottom: 1rem; }
+.field {
+  margin-bottom: 1.25rem;
+}
 
 .field label {
   font-size: 0.8rem;
   color: var(--muted);
+  margin-bottom: 0.35rem;
+  display: block;
 }
 
-.field input, .field select {
+.field input,
+.field select {
   width: 100%;
-  padding: 0.85rem;
+  padding: 0.9rem 1rem;
   border-radius: 14px;
-  border: none;
+  border: 1px solid transparent;
   background: rgba(255,255,255,0.1);
   color: var(--text);
+  outline: none;
+  transition: all .25s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124,92,255,0.35);
 }
 
 .btn {
   width: 100%;
-  padding: 0.9rem;
+  padding: 1rem;
   border-radius: 999px;
   border: none;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  background: linear-gradient(135deg,#7c5cff,#5a3cff);
+  background: linear-gradient(135deg,var(--primary),var(--primary-dark));
   color: white;
+  margin-top: 0.8rem;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(124,92,255,0.5);
+}
+
+.btn:active {
+  transform: scale(0.97);
 }
 </style>
 </head>
@@ -98,6 +148,8 @@ body {
 <body>
 
 <div class="auth-card">
+  <div class="brand">🚕 <span>Shamor</span> Rides</div>
+
   <div class="tabs">
     <button id="loginTab" class="active">Login</button>
     <button id="signupTab">Sign Up</button>
@@ -165,6 +217,13 @@ function isEmail(value) {
   return value.includes("@");
 }
 
+function clearSignupForm() {
+  signupFullName.value = "";
+  signupIdentifier.value = "";
+  signupPassword.value = "";
+  signupRole.value = "rider";
+}
+
 /* =========================
    LOGIN
 ========================= */
@@ -178,12 +237,9 @@ window.login = async () => {
   }
 
   const payload = { password };
-
-  if (isEmail(identifier)) {
-    payload.email = identifier;
-  } else {
-    payload.phone = normalizePhone(identifier);
-  }
+  isEmail(identifier)
+    ? payload.email = identifier
+    : payload.phone = normalizePhone(identifier);
 
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -217,10 +273,14 @@ window.signup = async () => {
 
   const payload = { full_name, password, role };
 
+  let method = "email";
+
   if (isEmail(identifier)) {
     payload.email = identifier;
   } else {
     payload.phone = normalizePhone(identifier);
+    method = "phone";
+    localStorage.setItem("pending_phone", payload.phone);
   }
 
   const res = await fetch(`${API_BASE}/auth/register`, {
@@ -235,15 +295,17 @@ window.signup = async () => {
     return;
   }
 
-  alert(
-    data.method === "phone"
-      ? "OTP sent via SMS"
-      : "Check your email for verification"
-  );
+  clearSignupForm();
+
+  if (method === "phone") {
+    location.href = "verify-otp.html";
+  } else {
+    alert("Check your email to verify your account");
+  }
 };
 
 /* =========================
-   TAB SWITCHING
+   TAB SWITCH
 ========================= */
 loginTab.onclick = () => {
   loginTab.classList.add("active");
@@ -259,14 +321,15 @@ signupTab.onclick = () => {
   loginForm.classList.remove("active");
 };
 
+/* =========================
+   PHONE AUTO FORMAT
+========================= */
 signupIdentifier.addEventListener("input", () => {
   let v = signupIdentifier.value.replace(/\D/g, "");
-
   if (v.startsWith("0")) {
     signupIdentifier.value = "233" + v.slice(1);
   }
 });
-
 </script>
 
 </body>
