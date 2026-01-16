@@ -250,16 +250,23 @@ async function resendOTP() {
   inputs.forEach(i => i.value = "");
   inputs[0].focus();
 
-  await fetch(`${API_BASE}/auth/resend-otp`, {
+  const res = await fetch(`${API_BASE}/auth/resend-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone }),
   });
 
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.detail || "Failed to resend OTP");
+    return;
+  }
+
+  alert("New OTP sent to your phone");
   startTimer();
 }
 
-startTimer();
 </script>
 
 </body>
