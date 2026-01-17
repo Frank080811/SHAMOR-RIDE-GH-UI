@@ -72,57 +72,46 @@ async function loadDrivers() {
    VIEW DOCUMENTS (BLOB SAFE)
 ========================= */
 async function viewDocs(userId) {
+  const res = await fetch(
+    `${API_BASE_URL}/admin/drivers/${userId}/documents`,
+    { headers: auth() }
+  );
+
+  const docs = await res.json();
   docsContent.innerHTML = "";
 
-  const docs = [
-    ["Ghana Card", "ghana_card"],
-    ["Driver License", "license"],
-    ["Insurance", "insurance"],
-    ["Tax Certificate", "tax"],
-    ["Selfie", "selfie"],
-    ["Vehicle Photo 1", "vehicle_front"],
-    ["Vehicle Photo 2", "vehicle_back"],
-  ];
+  renderDoc("Ghana Card", docs.ghana_card);
+  renderDoc("Driver License", docs.license);
+  renderDoc("Insurance", docs.insurance);
+  renderDoc("Tax", docs.tax);
+  renderDoc("Selfie", docs.selfie);
 
-  for (const [title, type] of docs) {
-    await renderDoc(userId, title, type);
-  }
+  docs.vehicle_photos.forEach((url, i) =>
+    renderDoc(`Vehicle Photo ${i + 1}`, url)
+  );
 
   docsModal.style.display = "flex";
 }
 
-async function renderDoc(userId, title, docType) {
-  try {
-    const res = await fetch(
-      `${API_BASE_URL}/admin/drivers/${userId}/documents/${docType}`,
-      {
-        headers: auth(),
-      }
-    );
-
-    if (!res.ok) throw new Error("Fetch failed");
-
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const isPdf = blob.type === "application/pdf";
-
-    docsContent.innerHTML += `
-      <div style="margin-bottom:1.5rem">
-        <h4>${title}</h4>
-        ${
-          isPdf
-            ? `<iframe src="${blobUrl}" style="width:100%;height:420px;border-radius:12px"></iframe>`
-            : `<img src="${blobUrl}" style="width:100%;border-radius:12px" />`
-        }
-        <a href="${blobUrl}" target="_blank" style="display:block;margin-top:.4rem;color:#7c5cff">
-          Open in new tab
-        </a>
-      </div>
-    `;
-  } catch (err) {
-    console.error(title, err);
-    docsContent.innerHTML += `<p>❌ ${title}: Failed to load</p>`;
+function renderDoc(title, url) {
+  if (!url) {
+    docsContent.innerHTML += `<p>❌ ${title}: Missing</p>`;
+    return;
   }
+
+  const isPdf = url.endsWith(".pdf");
+
+  docsContent.innerHTML += `
+    <div style="margin-bottom:1.5rem">
+      <h4>${title}</h4>
+      ${
+        isPdf
+          ? `<iframe src="${url}" style="width:100%;height:420px;border-radius:12px"></iframe>`
+          : `<img src="${url}" style="width:100%;border-radius:12px" />`
+      }
+      <a href="${url}" target="_blank">Open in new tab</a>
+    </div>
+  `;
 }
 
 /* =========================
