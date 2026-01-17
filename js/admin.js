@@ -72,46 +72,42 @@ async function loadDrivers() {
    VIEW DOCUMENTS (BLOB SAFE)
 ========================= */
 async function viewDocs(userId) {
-  const res = await fetch(
-    `${API_BASE_URL}/admin/drivers/${userId}/documents`,
-    { headers: auth() }
-  );
-
-  const docs = await res.json();
   docsContent.innerHTML = "";
 
-  await renderDoc("Ghana Card", docs.ghana_card);
-  await renderDoc("Driver License", docs.license);
-  await renderDoc("Insurance", docs.insurance);
-  await renderDoc("Tax Certificate", docs.tax);
-  await renderDoc("Selfie", docs.selfie);
+  const docs = [
+    ["Ghana Card", "ghana_card"],
+    ["Driver License", "license"],
+    ["Insurance", "insurance"],
+    ["Tax Certificate", "tax"],
+    ["Selfie", "selfie"],
+    ["Vehicle Photo 1", "vehicle_front"],
+    ["Vehicle Photo 2", "vehicle_back"],
+  ];
 
-  if (Array.isArray(docs.vehicle_photos)) {
-    for (let i = 0; i < docs.vehicle_photos.length; i++) {
-      await renderDoc(`Vehicle Photo ${i + 1}`, docs.vehicle_photos[i]);
-    }
+  for (const [title, type] of docs) {
+    await renderDoc(userId, title, type);
   }
 
   docsModal.style.display = "flex";
 }
 
-/* =========================
-   RENDER DOC AS BLOB
-========================= */
-async function renderDoc(title, url) {
-  if (!url) {
-    docsContent.innerHTML += `<p>❌ ${title}: Missing</p>`;
-    return;
-  }
-
+async function renderDoc(userId, title, docType) {
   try {
-    const res = await fetch(url);
+    const res = await fetch(
+      `${API_BASE_URL}/admin/drivers/${userId}/documents/${docType}`,
+      {
+        headers: auth(),
+      }
+    );
+
+    if (!res.ok) throw new Error("Fetch failed");
+
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const isPdf = blob.type === "application/pdf";
 
     docsContent.innerHTML += `
-      <div style="margin-bottom:1.4rem">
+      <div style="margin-bottom:1.5rem">
         <h4>${title}</h4>
         ${
           isPdf
@@ -124,6 +120,7 @@ async function renderDoc(title, url) {
       </div>
     `;
   } catch (err) {
+    console.error(title, err);
     docsContent.innerHTML += `<p>❌ ${title}: Failed to load</p>`;
   }
 }
