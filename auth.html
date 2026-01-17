@@ -7,140 +7,115 @@
 
 <style>
 :root {
-  --bg: #070b18;
-  --glass: rgba(255,255,255,0.08);
-  --glass-border: rgba(255,255,255,0.18);
-  --primary: #7c5cff;
-  --primary-dark: #5a3cff;
-  --text: #eaeaff;
-  --muted: #aab0ff;
+  --bg:#070b18;
+  --glass:rgba(255,255,255,0.08);
+  --glass-border:rgba(255,255,255,0.18);
+  --primary:#7c5cff;
+  --primary-dark:#5a3cff;
+  --text:#eaeaff;
+  --muted:#aab0ff;
 }
 
 * {
-  box-sizing: border-box;
-  font-family: system-ui, -apple-system, sans-serif;
+  box-sizing:border-box;
+  font-family:system-ui,-apple-system,sans-serif;
 }
 
 body {
-  margin: 0;
-  min-height: 100vh;
-  background: linear-gradient(-45deg, #1a1f4a, #070b18, #2a1f6a, #070b18);
-  background-size: 400% 400%;
-  animation: bgMove 18s ease infinite;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(-45deg,#1a1f4a,#070b18,#2a1f6a,#070b18);
+  background-size:400% 400%;
+  animation:bgMove 18s ease infinite;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:1.5rem;
 }
 
 @keyframes bgMove {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% { background-position:0% 50%; }
+  50% { background-position:100% 50%; }
+  100% { background-position:0% 50%; }
 }
 
 .auth-card {
-  width: 100%;
-  max-width: 480px;
-  background: var(--glass);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 26px;
-  padding: 2.8rem 2.2rem;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
-  transition: transform .3s ease, box-shadow .3s ease;
-}
-
-.auth-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 40px 90px rgba(0,0,0,0.6);
+  width:100%;
+  max-width:480px;
+  background:var(--glass);
+  backdrop-filter:blur(20px);
+  border:1px solid var(--glass-border);
+  border-radius:26px;
+  padding:2.8rem 2.2rem;
+  box-shadow:0 30px 80px rgba(0,0,0,.45);
 }
 
 .brand {
-  text-align: center;
-  font-size: 1.4rem;
-  font-weight: 800;
-  margin-bottom: 1.8rem;
+  text-align:center;
+  font-size:1.4rem;
+  font-weight:800;
+  margin-bottom:1.8rem;
 }
 
-.brand span { color: var(--primary); }
+.brand span { color:var(--primary); }
 
 .tabs {
-  display: flex;
-  background: rgba(255,255,255,0.08);
-  border-radius: 999px;
-  margin-bottom: 2rem;
+  display:flex;
+  background:rgba(255,255,255,0.08);
+  border-radius:999px;
+  margin-bottom:2rem;
 }
 
 .tabs button {
-  flex: 1;
-  padding: 0.7rem;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .3s;
+  flex:1;
+  padding:.7rem;
+  border:none;
+  background:none;
+  color:var(--text);
+  font-weight:600;
+  cursor:pointer;
 }
 
 .tabs button.active {
-  background: linear-gradient(135deg,var(--primary),var(--primary-dark));
-  border-radius: 999px;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  border-radius:999px;
 }
 
-.form { display: none; }
-.form.active { display: block; }
+.form { display:none; }
+.form.active { display:block; }
 
 .field {
-  margin-bottom: 1.25rem;
+  margin-bottom:1.25rem;
 }
 
 .field label {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 0.35rem;
-  display: block;
+  font-size:.8rem;
+  color:var(--muted);
+  display:block;
+  margin-bottom:.35rem;
 }
 
-.field input,
-.field select {
-  width: 100%;
-  padding: 0.9rem 1rem;
-  border-radius: 14px;
-  border: 1px solid transparent;
-  background: rgba(255,255,255,0.1);
-  color: var(--text);
-  outline: none;
-  transition: all .25s ease;
-}
-
-.field input:focus,
-.field select:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(124,92,255,0.35);
+.field input, .field select {
+  width:100%;
+  padding:.9rem 1rem;
+  border-radius:14px;
+  border:none;
+  background:rgba(255,255,255,0.1);
+  color:var(--text);
+  outline:none;
 }
 
 .btn {
-  width: 100%;
-  padding: 1rem;
-  border-radius: 999px;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
-  background: linear-gradient(135deg,var(--primary),var(--primary-dark));
-  color: white;
-  margin-top: 0.8rem;
-  transition: transform .2s ease, box-shadow .2s ease;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(124,92,255,0.5);
-}
-
-.btn:active {
-  transform: scale(0.97);
+  width:100%;
+  padding:1rem;
+  border-radius:999px;
+  border:none;
+  font-weight:700;
+  cursor:pointer;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:white;
+  margin-top:.8rem;
 }
 </style>
 </head>
@@ -161,12 +136,10 @@ body {
       <label>Email or Phone</label>
       <input id="loginIdentifier">
     </div>
-
     <div class="field">
       <label>Password</label>
       <input id="loginPassword" type="password">
     </div>
-
     <button class="btn" onclick="login()">Login</button>
   </div>
 
@@ -176,17 +149,14 @@ body {
       <label>Full Name</label>
       <input id="signupFullName">
     </div>
-
     <div class="field">
       <label>Email or Phone</label>
       <input id="signupIdentifier" placeholder="024xxxxxxx or email">
     </div>
-
     <div class="field">
       <label>Password</label>
       <input id="signupPassword" type="password">
     </div>
-
     <div class="field">
       <label>Role</label>
       <select id="signupRole">
@@ -194,7 +164,6 @@ body {
         <option value="driver">Driver</option>
       </select>
     </div>
-
     <button class="btn" onclick="signup()">Create Account</button>
   </div>
 </div>
@@ -202,133 +171,126 @@ body {
 <script type="module">
 import { API_BASE } from "./js/config.js";
 
-/* =========================
-   HELPERS
-========================= */
-function normalizePhone(value) {
-  let phone = value.replace(/\s+/g, "");
-  if (phone.startsWith("0")) {
-    phone = "233" + phone.slice(1);
-  }
-  return phone;
+/* ===================== HELPERS ===================== */
+function normalizePhone(v) {
+  v = v.replace(/\s+/g,"");
+  return v.startsWith("0") ? "233" + v.slice(1) : v;
+}
+function isEmail(v){ return v.includes("@"); }
+
+function parseJwt(token){
+  try { return JSON.parse(atob(token.split(".")[1])); }
+  catch { return null; }
 }
 
-function isEmail(value) {
-  return value.includes("@");
+function clearSignup(){
+  signupFullName.value="";
+  signupIdentifier.value="";
+  signupPassword.value="";
+  signupRole.value="rider";
 }
 
-function clearSignupForm() {
-  signupFullName.value = "";
-  signupIdentifier.value = "";
-  signupPassword.value = "";
-  signupRole.value = "rider";
-}
-
-/* =========================
-   LOGIN
-========================= */
+/* ===================== LOGIN ===================== */
 window.login = async () => {
   const identifier = loginIdentifier.value.trim();
   const password = loginPassword.value;
-
-  if (!identifier || !password) {
-    alert("All fields required");
-    return;
-  }
+  if(!identifier || !password) return alert("All fields required");
 
   const payload = { password };
   isEmail(identifier)
     ? payload.email = identifier
     : payload.phone = normalizePhone(identifier);
 
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+  const res = await fetch(`${API_BASE}/auth/login`,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify(payload)
   });
 
   const data = await res.json();
-  if (!res.ok) {
-    alert(data.detail || "Login failed");
-    return;
-  }
+  if(!res.ok) return alert(data.detail || "Login failed");
 
   localStorage.setItem("access_token", data.access_token);
-  location.href = "rider.html";
-};
+  localStorage.setItem("refresh_token", data.refresh_token);
 
-/* =========================
-   SIGNUP
-========================= */
-window.signup = async () => {
-  const identifier = signupIdentifier.value.trim();
-  const full_name = signupFullName.value.trim();
-  const password = signupPassword.value;
-  const role = signupRole.value;
+  const jwt = parseJwt(data.access_token);
+  const role = jwt?.role;
 
-  if (!identifier || !full_name || !password) {
-    alert("All fields required");
-    return;
+  /* 🚕 DRIVER FLOW */
+  if(role === "driver"){
+    const s = await fetch(`${API_BASE}/drivers/me/status`,{
+      headers:{ Authorization:`Bearer ${data.access_token}` }
+    });
+    const d = await s.json();
+    const st = String(d.status).toLowerCase();
+
+    if(st === "not_started" || st === "in_progress")
+      return location.href="driver-onboarding.html";
+    if(st === "pending")
+      return location.href="driver-pending.html";
+    if(st === "rejected")
+      return location.href="driver-rejected.html";
+    if(st === "approved")
+      return location.href="driver.html";
+
+    return location.href="driver-onboarding.html";
   }
 
-  const payload = { full_name, password, role };
+  if(role === "admin") return location.href="admin.html";
+  location.href="rider.html";
+};
 
-  let method = "email";
+/* ===================== SIGNUP ===================== */
+window.signup = async () => {
+  const id = signupIdentifier.value.trim();
+  const name = signupFullName.value.trim();
+  const pass = signupPassword.value;
+  const role = signupRole.value;
+  if(!id || !name || !pass) return alert("All fields required");
 
-  if (isEmail(identifier)) {
-    payload.email = identifier;
-  } else {
-    payload.phone = normalizePhone(identifier);
-    method = "phone";
+  const payload = { full_name:name, password:pass, role };
+  let method="email";
+
+  if(isEmail(id)) payload.email=id;
+  else {
+    payload.phone = normalizePhone(id);
+    method="phone";
     localStorage.setItem("pending_phone", payload.phone);
   }
 
-  const res = await fetch(`${API_BASE}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+  const res = await fetch(`${API_BASE}/auth/register`,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify(payload)
   });
 
   const data = await res.json();
-  if (!res.ok) {
-    alert(data.detail || "Signup failed");
-    return;
-  }
+  if(!res.ok) return alert(data.detail || "Signup failed");
 
-  clearSignupForm();
-
-  if (method === "phone") {
-    location.href = "verify-otp.html";
-  } else {
-    alert("Check your email to verify your account");
-  }
+  clearSignup();
+  method==="phone"
+    ? location.href="verify-otp.html"
+    : alert("Check your email to verify your account");
 };
 
-/* =========================
-   TAB SWITCH
-========================= */
-loginTab.onclick = () => {
+/* ===================== TABS ===================== */
+loginTab.onclick=()=>{
   loginTab.classList.add("active");
   signupTab.classList.remove("active");
   loginForm.classList.add("active");
   signupForm.classList.remove("active");
 };
-
-signupTab.onclick = () => {
+signupTab.onclick=()=>{
   signupTab.classList.add("active");
   loginTab.classList.remove("active");
   signupForm.classList.add("active");
   loginForm.classList.remove("active");
 };
 
-/* =========================
-   PHONE AUTO FORMAT
-========================= */
-signupIdentifier.addEventListener("input", () => {
-  let v = signupIdentifier.value.replace(/\D/g, "");
-  if (v.startsWith("0")) {
-    signupIdentifier.value = "233" + v.slice(1);
-  }
+/* ===================== PHONE AUTO FORMAT ===================== */
+signupIdentifier.addEventListener("input",()=>{
+  let v = signupIdentifier.value.replace(/\D/g,"");
+  if(v.startsWith("0")) signupIdentifier.value="233"+v.slice(1);
 });
 </script>
 
