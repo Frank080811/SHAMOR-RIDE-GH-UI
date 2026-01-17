@@ -1,5 +1,3 @@
-// js/admin.js
-
 import { API_BASE_URL, auth, getToken } from "./config.js";
 
 /* =========================
@@ -29,121 +27,110 @@ let rejectDriverId = null;
    LOAD STATS
 ========================= */
 async function loadStats() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/admin/stats`, {
-      headers: auth(),
-    });
+  const res = await fetch(`${API_BASE_URL}/admin/stats`, {
+    headers: auth(),
+  });
+  const data = await res.json();
 
-    if (!res.ok) throw new Error("Failed to load stats");
-
-    const data = await res.json();
-    usersCount.textContent = data.users;
-    ridesCount.textContent = data.rides;
-    driversCount.textContent = data.pending_drivers;
-  } catch (err) {
-    console.error(err);
-    alert("Unable to load admin stats");
-  }
+  usersCount.textContent = data.users;
+  ridesCount.textContent = data.rides;
+  driversCount.textContent = data.pending_drivers;
 }
 
 /* =========================
    LOAD PENDING DRIVERS
 ========================= */
 async function loadDrivers() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/admin/drivers/pending`, {
-      headers: auth(),
-    });
+  const res = await fetch(`${API_BASE_URL}/admin/drivers/pending`, {
+    headers: auth(),
+  });
 
-    if (!res.ok) throw new Error("Failed to load drivers");
+  const drivers = await res.json();
+  driversTable.innerHTML = "";
 
-    const drivers = await res.json();
-    driversTable.innerHTML = "";
-
-    drivers.forEach(d => {
-      driversTable.innerHTML += `
-        <tr>
-          <td>${d.name || "—"}</td>
-          <td>${d.phone || "—"}</td>
-          <td>${d.vehicle_model || "—"}</td>
-          <td>${d.plate || "—"}</td>
-          <td>
-            <button class="btn view" data-id="${d.user_id}">View</button>
-          </td>
-          <td><span class="badge pending">Pending</span></td>
-          <td>
-            <button class="btn approve" data-id="${d.user_id}">Approve</button>
-            <button class="btn reject" data-id="${d.user_id}">Reject</button>
-          </td>
-        </tr>
-      `;
-    });
-  } catch (err) {
-    console.error(err);
-    alert("Unable to load pending drivers");
-  }
+  drivers.forEach(d => {
+    driversTable.innerHTML += `
+      <tr>
+        <td>${d.name || "—"}</td>
+        <td>${d.phone || "—"}</td>
+        <td>${d.vehicle_model || "—"}</td>
+        <td>${d.plate || "—"}</td>
+        <td>
+          <button class="btn view" data-id="${d.user_id}">View</button>
+        </td>
+        <td><span class="badge pending">Pending</span></td>
+        <td>
+          <button class="btn approve" data-id="${d.user_id}">Approve</button>
+          <button class="btn reject" data-id="${d.user_id}">Reject</button>
+        </td>
+      </tr>
+    `;
+  });
 }
 
 /* =========================
-   VIEW DOCUMENTS (SCROLLABLE)
+   VIEW DOCUMENTS (BLOB SAFE)
 ========================= */
 async function viewDocs(userId) {
-  try {
-    const res = await fetch(
-      `${API_BASE_URL}/admin/drivers/${userId}/documents`,
-      { headers: auth() }
-    );
+  const res = await fetch(
+    `${API_BASE_URL}/admin/drivers/${userId}/documents`,
+    { headers: auth() }
+  );
 
-    if (!res.ok) throw new Error("Failed to load documents");
+  const docs = await res.json();
+  docsContent.innerHTML = "";
 
-    const docs = await res.json();
-    docsContent.innerHTML = "";
+  await renderDoc("Ghana Card", docs.ghana_card);
+  await renderDoc("Driver License", docs.license);
+  await renderDoc("Insurance", docs.insurance);
+  await renderDoc("Tax Certificate", docs.tax);
+  await renderDoc("Selfie", docs.selfie);
 
-    renderDoc("Ghana Card", docs.ghana_card);
-    renderDoc("Driver License", docs.license);
-    renderDoc("Insurance", docs.insurance);
-
-    if (Array.isArray(docs.vehicle_photos)) {
-      docs.vehicle_photos.forEach((url, i) =>
-        renderDoc(`Vehicle Photo ${i + 1}`, url)
-      );
+  if (Array.isArray(docs.vehicle_photos)) {
+    for (let i = 0; i < docs.vehicle_photos.length; i++) {
+      await renderDoc(`Vehicle Photo ${i + 1}`, docs.vehicle_photos[i]);
     }
-
-    docsModal.style.display = "flex";
-  } catch (err) {
-    console.error(err);
-    alert("Unable to load documents");
   }
+
+  docsModal.style.display = "flex";
 }
 
-function renderDoc(title, url) {
+/* =========================
+   RENDER DOC AS BLOB
+========================= */
+async function renderDoc(title, url) {
   if (!url) {
     docsContent.innerHTML += `<p>❌ ${title}: Missing</p>`;
     return;
   }
 
-  const isPdf = url.toLowerCase().endsWith(".pdf");
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const isPdf = blob.type === "application/pdf";
 
-  docsContent.innerHTML += `
-    <div style="margin-bottom:1.2rem">
-      <h4>${title}</h4>
-      ${
-        isPdf
-          ? `<iframe 
-                src="${url}" 
-                style="width:100%;height:420px;border-radius:12px"
-             ></iframe>`
-          : `<img 
-                src="${url}" 
-                style="width:100%;border-radius:12px"
-                loading="lazy"
-             />`
-      }
-    </div>
-  `;
+    docsContent.innerHTML += `
+      <div style="margin-bottom:1.4rem">
+        <h4>${title}</h4>
+        ${
+          isPdf
+            ? `<iframe src="${blobUrl}" style="width:100%;height:420px;border-radius:12px"></iframe>`
+            : `<img src="${blobUrl}" style="width:100%;border-radius:12px" />`
+        }
+        <a href="${blobUrl}" target="_blank" style="display:block;margin-top:.4rem;color:#7c5cff">
+          Open in new tab
+        </a>
+      </div>
+    `;
+  } catch (err) {
+    docsContent.innerHTML += `<p>❌ ${title}: Failed to load</p>`;
+  }
 }
 
-
+/* =========================
+   CLOSE MODAL
+========================= */
 function closeDocs() {
   docsModal.style.display = "none";
   docsContent.innerHTML = "";
@@ -155,26 +142,13 @@ function closeDocs() {
 async function approve(userId) {
   if (!confirm("Approve this driver?")) return;
 
-  try {
-    const res = await fetch(
-      `${API_BASE_URL}/admin/drivers/${userId}/approve`,
-      {
-        method: "POST",
-        headers: auth(),
-      }
-    );
+  await fetch(`${API_BASE_URL}/admin/drivers/${userId}/approve`, {
+    method: "POST",
+    headers: auth(),
+  });
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Approval failed");
-    }
-
-    await loadStats();
-    await loadDrivers();
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
+  loadStats();
+  loadDrivers();
 }
 
 /* =========================
@@ -187,39 +161,23 @@ function openReject(userId) {
 
 async function submitReject() {
   const reason = rejectReason.value.trim();
-  if (!reason) {
-    alert("Please provide a rejection reason");
-    return;
-  }
+  if (!reason) return alert("Provide a reason");
 
-  try {
-    const res = await fetch(
-      `${API_BASE_URL}/admin/drivers/${rejectDriverId}/reject`,
-      {
-        method: "POST",
-        headers: {
-          ...auth(),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reason }),
-      }
-    );
+  await fetch(`${API_BASE_URL}/admin/drivers/${rejectDriverId}/reject`, {
+    method: "POST",
+    headers: {
+      ...auth(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ reason }),
+  });
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Rejection failed");
-    }
+  rejectModal.style.display = "none";
+  rejectReason.value = "";
+  rejectDriverId = null;
 
-    rejectModal.style.display = "none";
-    rejectReason.value = "";
-    rejectDriverId = null;
-
-    await loadStats();
-    await loadDrivers();
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
+  loadStats();
+  loadDrivers();
 }
 
 /* =========================
@@ -231,7 +189,7 @@ function logout() {
 }
 
 /* =========================
-   EVENT DELEGATION
+   EVENTS
 ========================= */
 driversTable.addEventListener("click", e => {
   const id = e.target.dataset.id;
@@ -242,7 +200,6 @@ driversTable.addEventListener("click", e => {
   if (e.target.classList.contains("reject")) openReject(id);
 });
 
-
 /* =========================
    INIT
 ========================= */
@@ -250,7 +207,7 @@ loadStats();
 loadDrivers();
 
 /* =========================
-   EXPOSE FOR HTML
+   EXPOSE
 ========================= */
 window.closeDocs = closeDocs;
 window.submitReject = submitReject;
