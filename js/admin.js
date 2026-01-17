@@ -122,19 +122,27 @@ function renderDoc(title, url) {
     return;
   }
 
-  const isPdf = url.endsWith(".pdf");
+  const isPdf = url.toLowerCase().endsWith(".pdf");
 
   docsContent.innerHTML += `
-    <div style="margin-bottom:1rem">
+    <div style="margin-bottom:1.2rem">
       <h4>${title}</h4>
       ${
         isPdf
-          ? `<iframe src="${url}" style="width:100%;height:420px;border-radius:10px"></iframe>`
-          : `<img src="${url}" style="width:100%;border-radius:10px" loading="lazy" />`
+          ? `<iframe 
+                src="${url}" 
+                style="width:100%;height:420px;border-radius:12px"
+             ></iframe>`
+          : `<img 
+                src="${url}" 
+                style="width:100%;border-radius:12px"
+                loading="lazy"
+             />`
       }
     </div>
   `;
 }
+
 
 function closeDocs() {
   docsModal.style.display = "none";
@@ -233,6 +241,7 @@ driversTable.addEventListener("click", e => {
   if (e.target.classList.contains("approve")) approve(id);
   if (e.target.classList.contains("reject")) openReject(id);
 });
+
 
 /* =========================
    INIT
