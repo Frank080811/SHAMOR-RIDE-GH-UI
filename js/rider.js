@@ -91,9 +91,11 @@ function showToast(msg) {
    ROUTE DRAWING
 ========================= */
 async function drawRoute(from, to) {
+  if (!from || !to) return;
+
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
-    `${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
+      `${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
   );
 
   const data = await res.json();
@@ -169,8 +171,8 @@ async function tryPrepareRide() {
 
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
-    `${selectedPickup.longitude},${selectedPickup.latitude};` +
-    `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
+      `${selectedPickup.longitude},${selectedPickup.latitude};` +
+      `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
   );
 
   const data = await res.json();
@@ -190,16 +192,17 @@ async function tryPrepareRide() {
 }
 
 /* =========================
-   DRIVER PREVIEW
+   DRIVER PREVIEW (SAFE)
 ========================= */
 function startDriverScan() {
+  if (assignedDriver) return; // 🔒 do not override assigned driver
   clearInterval(pickupScanInterval);
   pickupScanInterval = setInterval(loadDriversForPreview, 15000);
   loadDriversForPreview();
 }
 
 async function loadDriversForPreview() {
-  if (!selectedPickup) return;
+  if (!selectedPickup || assignedDriver) return;
 
   const res = await fetch(`${API_BASE}/tracking/drivers/live`);
   const drivers = await res.json();
@@ -229,9 +232,10 @@ async function loadDriversForPreview() {
 async function calculateDriverETA(driver) {
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
-    `${driver.lng},${driver.lat};` +
-    `${selectedPickup.longitude},${selectedPickup.latitude}?overview=false`
+      `${driver.lng},${driver.lat};` +
+      `${selectedPickup.longitude},${selectedPickup.latitude}?overview=false`
   );
+
   const data = await res.json();
   return { eta_min: Math.ceil(data.routes[0].duration / 60) };
 }
@@ -265,6 +269,7 @@ confirmBtn.onclick = async () => {
    DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
+  if (!driver) return;
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
   driverVehicle.innerText = driver.vehicle ?? "Vehicle";
@@ -288,7 +293,7 @@ function updateDriverPosition(lat, lng) {
 }
 
 /* =========================
-   WEBSOCKET (WITH STALL + ROUTES)
+   WEBSOCKET (FINAL)
 ========================= */
 if (token) {
   const ws = new WebSocket(`${WS_BASE}/tracking/ws/rider?token=${token}`);
@@ -299,13 +304,11 @@ if (token) {
     if (msg.type === "ride.accepted") {
       assignedDriver = msg.driver;
       clearInterval(pickupScanInterval);
+
       showToast("🚗 Driver accepted your ride");
       showDriverCard(assignedDriver);
 
-      drawRoute(
-        { lat: msg.driver.lat, lng: msg.driver.lng },
-        { lat: selectedPickup.latitude, lng: selectedPickup.longitude }
-      );
+      return;
     }
 
     if (
@@ -316,19 +319,23 @@ if (token) {
       updateDriverPosition(msg.lat, msg.lng);
     }
 
-    if (msg.type === "driver.stalled") {
-      showToast("⚠️ Driver unavailable. Reassigning...");
-      assignedDriver = null;
-      routeLine && map.removeLayer(routeLine);
-      assignedDriverMarker && map.removeLayer(assignedDriverMarker);
-      startDriverScan();
-    }
-
     if (msg.type === "ride.started") {
       drawRoute(
         { lat: selectedPickup.latitude, lng: selectedPickup.longitude },
         { lat: selectedDropoff.latitude, lng: selectedDropoff.longitude }
       );
     }
+
+    if (msg.type === "driver.stalled") {
+      showToast("⚠️ Driver unavailable. Reassigning...");
+      assignedDriver = null;
+
+      routeLine && map.removeLayer(routeLine);
+      assignedDriverMarker && map.removeLayer(assignedDriverMarker);
+
+      startDriverScan();
+    }
   };
 }
+ 
+
