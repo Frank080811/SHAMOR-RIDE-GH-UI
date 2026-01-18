@@ -26,11 +26,8 @@ let assignedDriver = null;
 let activeRideId = null;
 
 let pickupScanInterval = null;
-let countdownInterval = null;
-let etaSeconds = 0;
 
-let lastDriverLatLng = null;
-let stallTimer = null;
+const token = localStorage.getItem("access_token");
 
 /* =========================
    DOM
@@ -53,8 +50,6 @@ const driverRating = document.getElementById("driverRating");
 const driverVehicle = document.getElementById("driverVehicle");
 const driverPlate = document.getElementById("driverPlate");
 const driverCallBtn = document.getElementById("driverCallBtn");
-
-const token = localStorage.getItem("access_token");
 
 /* =========================
    MAP INIT
@@ -172,7 +167,7 @@ async function tryPrepareRide() {
 }
 
 /* =========================
-   DRIVER PREVIEW MATCHING
+   DRIVER PREVIEW
 ========================= */
 function startDriverScan() {
   if (pickupScanInterval) clearInterval(pickupScanInterval);
@@ -183,7 +178,7 @@ function startDriverScan() {
 async function loadDriversForPreview() {
   const res = await fetch(`${API_BASE}/tracking/drivers/live`);
   const drivers = await res.json();
-  if (!drivers.length) return;
+  if (!drivers.length || !selectedPickup) return;
 
   const scored = drivers.map(d => {
     const distance = haversine(
@@ -195,9 +190,8 @@ async function loadDriversForPreview() {
     return {
       ...d,
       score:
-        (1 - distance / 8) * 0.5 +
-        ((d.rating || 4.5) / 5) * 0.3 +
-        (d.on_trip && d.near_dropoff ? 0.2 : 0)
+        (1 - distance / 8) * 0.6 +
+        ((d.rating || 4.8) / 5) * 0.4
     };
   });
 
@@ -230,11 +224,11 @@ async function calculateDriverETA(driver) {
 }
 
 /* =========================
-   CONFIRM → REQUEST RIDE
+   CONFIRM RIDE
 ========================= */
 confirmBtn.onclick = async () => {
   confirmBtn.disabled = true;
-  showToast("🔍 Sending request to driver...");
+  showToast("🔍 Requesting driver...");
 
   const res = await fetch(`${API_BASE}/rides/request`, {
     method: "POST",
@@ -255,13 +249,15 @@ confirmBtn.onclick = async () => {
 };
 
 /* =========================
-   SHOW DRIVER CARD
+   DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
-  driverName.innerText = driver.name || "Driver";
-  driverRating.innerText = driver.rating || "4.8";
-  driverVehicle.innerText = driver.vehicle || "Vehicle";
-  driverPlate.innerText = driver.plate || "—";
+  if (!driver) return;
+
+  driverName.innerText = driver.name ?? "Driver";
+  driverRating.innerText = driver.rating ?? "4.8";
+  driverVehicle.innerText = driver.vehicle ?? "Vehicle";
+  driverPlate.innerText = driver.plate ?? "—";
 
   if (driver.phone) {
     driverCallBtn.href = `tel:${driver.phone}`;
@@ -289,25 +285,33 @@ function updateDriverPosition(driver) {
 }
 
 /* =========================
-   WEBSOCKET EVENTS
+   WEBSOCKET (FIXED WITH TOKEN)
 ========================= */
-const ws = new WebSocket(`${WS_BASE}/ws/rider`);
+if (!token) {
+  console.error("No auth token found. Rider WebSocket not started.");
+} else {
+  const ws = new WebSocket(`${WS_BASE}/ws/rider?token=${token}`);
 
-ws.onmessage = e => {
-  const msg = JSON.parse(e.data);
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
 
-  if (msg.type === "ride.accepted" && msg.ride_id === activeRideId) {
-    assignedDriver = msg.driver;
-    showToast("🚗 Driver accepted your ride");
-    showDriverCard(assignedDriver);
-  }
+    if (msg.type === "ride.accepted" && msg.driver) {
+      assignedDriver = msg.driver;
+      showToast("🚗 Driver accepted your ride");
+      showDriverCard(assignedDriver);
+    }
 
-  if (msg.type === "driver.location" && assignedDriver) {
-    updateDriverPosition(msg);
-  }
+    if (msg.type === "driver_location" && assignedDriver) {
+      updateDriverPosition(msg);
+    }
 
-  if (msg.type === "ride.declined") {
-    showToast("❌ Driver declined. Searching again...");
-    startDriverScan();
-  }
-};
+    if (msg.type === "ride.declined") {
+      showToast("❌ Driver declined. Searching again...");
+      startDriverScan();
+    }
+  };
+
+  ws.onerror = () => {
+    console.error("Rider WebSocket error");
+  };
+}

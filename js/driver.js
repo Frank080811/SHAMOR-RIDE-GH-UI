@@ -1,4 +1,6 @@
-// js/driver.js
+/* =========================
+   CONFIG
+========================= */
 import { API_BASE, WS_BASE, getToken, auth } from "./config.js";
 
 const token = getToken();
@@ -46,6 +48,42 @@ map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
+   DRIVER WEBSOCKET (FIXED)
+========================= */
+let driverWS = null;
+
+function startDriverSocket() {
+  if (!token) return;
+
+  driverWS = new WebSocket(`${WS_BASE}/ws/driver?token=${token}`);
+
+  driverWS.onopen = () => {
+    console.log("✅ Driver WebSocket connected");
+  };
+
+  driverWS.onmessage = e => {
+    const msg = JSON.parse(e.data);
+
+    // Future: admin messages / force logout / alerts
+    if (msg.type === "force_offline") {
+      showToast("⚠️ You have been set offline");
+      isOnline = false;
+    }
+  };
+
+  driverWS.onerror = () => {
+    console.error("❌ Driver WebSocket error");
+  };
+
+  driverWS.onclose = () => {
+    console.warn("⚠️ Driver WebSocket closed, reconnecting...");
+    setTimeout(startDriverSocket, 3000);
+  };
+}
+
+startDriverSocket();
+
+/* =========================
    LIVE GPS TRACKING
 ========================= */
 navigator.geolocation.watchPosition(
@@ -58,7 +96,7 @@ navigator.geolocation.watchPosition(
       }).addTo(map);
     } else {
       marker.setLatLng([latitude, longitude]);
-      if (heading !== null) {
+      if (heading !== null && marker.getElement()) {
         marker.getElement().style.transform = `rotate(${heading}deg)`;
       }
     }
@@ -68,7 +106,12 @@ navigator.geolocation.watchPosition(
     fetch(`${API_BASE}/tracking/driver`, {
       method: "POST",
       headers: auth(),
-      body: JSON.stringify({ lat: latitude, lng: longitude, heading, speed })
+      body: JSON.stringify({
+        lat: latitude,
+        lng: longitude,
+        heading,
+        speed
+      })
     });
 
     if (currentRide) updateETAProgress(latitude, longitude);
@@ -78,7 +121,7 @@ navigator.geolocation.watchPosition(
 );
 
 /* =========================
-   POLL PENDING RIDES
+   POLL PENDING RIDES (FALLBACK)
 ========================= */
 setInterval(async () => {
   if (!isOnline || currentRide) return;
@@ -88,6 +131,8 @@ setInterval(async () => {
     { headers: auth() }
   );
 
+  if (!res.ok) return;
+
   const rides = await res.json();
   if (!rides.length) return;
 
@@ -96,7 +141,7 @@ setInterval(async () => {
 }, 5000);
 
 /* =========================
-   SHOW RIDE
+   SHOW RIDE REQUEST
 ========================= */
 async function showRide(ride) {
   const eta = await calculateETA(
@@ -108,11 +153,9 @@ async function showRide(ride) {
 
   rideInfo.innerHTML = `
     🚕 <b>New Ride Request</b><br>
-    Pickup: ${ride.pickup_name || "Assigned Point"}<br>
-    Drop-off: ${ride.dropoff_name || "Assigned Point"}<br>
+    Pickup coordinates: ${ride.pickup_lat}, ${ride.pickup_lng}<br>
     Distance: ${eta?.distance_km || "--"} km<br>
-    ETA: ${eta?.eta_min || "--"} min<br>
-    Fare: ₵${ride.fare}
+    ETA: ${eta?.eta_min || "--"} min
   `;
 
   rideCard.classList.remove("hidden");
@@ -126,20 +169,26 @@ async function showRide(ride) {
    ACCEPT / REJECT
 ========================= */
 acceptBtn.onclick = async () => {
+  if (!currentRide) return;
+
   await fetch(
     `${API_BASE}/tracking/driver/rides/${currentRide.ride_id}/accept`,
     { method: "POST", headers: auth() }
   );
+
   rideCard.classList.add("hidden");
   startBtn.classList.remove("hidden");
   driverStatus.innerText = "🧭 Heading to pickup";
 };
 
 rejectBtn.onclick = async () => {
+  if (!currentRide) return;
+
   await fetch(
     `${API_BASE}/tracking/driver/rides/${currentRide.ride_id}/reject`,
     { method: "POST", headers: auth() }
   );
+
   resetState();
 };
 
@@ -151,6 +200,7 @@ startBtn.onclick = async () => {
     `${API_BASE}/tracking/driver/rides/${currentRide.ride_id}/start`,
     { method: "POST", headers: auth() }
   );
+
   startBtn.classList.add("hidden");
   endBtn.classList.remove("hidden");
   driverStatus.innerText = "🚦 Trip started";
@@ -161,29 +211,36 @@ endBtn.onclick = async () => {
     `${API_BASE}/tracking/driver/rides/${currentRide.ride_id}/end`,
     { method: "POST", headers: auth() }
   );
+
   showToast("✅ Trip completed");
   resetState();
 };
 
 /* =========================
-   EARNINGS
+   EARNINGS (FIXED KEYS)
 ========================= */
 async function loadEarnings() {
   const res = await fetch(
     `${API_BASE}/tracking/driver/earnings`,
     { headers: auth() }
   );
+
+  if (!res.ok) return;
+
   const data = await res.json();
-  earningsToday.innerText = `💰 Today: ₵${data.today_earnings}`;
-  earningsTotal.innerText = `📊 Total: ₵${data.total_earnings}`;
+  earningsToday.innerText = `💰 Today: ₵${data.today}`;
+  earningsTotal.innerText = `📊 Total: ₵${data.total}`;
 }
+
 setInterval(loadEarnings, 20000);
+loadEarnings();
 
 /* =========================
    SOS
 ========================= */
 sosBtn.onclick = async () => {
   if (!marker || !confirm("Send emergency alert?")) return;
+
   const { lat, lng } = marker.getLatLng();
 
   await fetch(`${API_BASE}/tracking/driver/sos`, {
@@ -196,7 +253,7 @@ sosBtn.onclick = async () => {
 };
 
 /* =========================
-   UTIL
+   UTILITIES
 ========================= */
 function resetState() {
   currentRide = null;
