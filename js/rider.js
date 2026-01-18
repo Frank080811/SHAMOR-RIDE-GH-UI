@@ -3,13 +3,20 @@
 ========================= */
 import { API_BASE, WS_BASE } from "./config.js";
 
-const SERVICE_AREA = {
-  center: { lat: 6.8970, lng: -1.5250 },
-  bounds: { south: 6.75, west: -1.70, north: 7.05, east: -1.35 }
+/* =========================
+   SOFT UI STATE (NON-BREAKING)
+========================= */
+const UI_STATE = {
+  IDLE: "idle",
+  SEARCHING: "searching",
+  PREVIEW: "preview",
+  ASSIGNED: "assigned"
 };
 
+let uiState = UI_STATE.IDLE;
+
 /* =========================
-   STATE
+   MAP + DATA STATE
 ========================= */
 let map, pickupMarker, dropoffMarker;
 let assignedDriverMarker = null;
@@ -18,15 +25,12 @@ let routeLine = null;
 let selectedPickup = null;
 let selectedDropoff = null;
 
-let distanceKm = 0;
-let baseFare = 0;
-let finalFare = 0;
-
 let previewDriver = null;
 let assignedDriver = null;
 let activeRideId = null;
 
 let pickupScanInterval = null;
+let searchingAnimInterval = null;
 
 const token = localStorage.getItem("access_token");
 
@@ -42,8 +46,9 @@ const confirmBtn = document.getElementById("confirmBtn");
 const rideInfo = document.getElementById("rideInfo");
 const distanceText = document.getElementById("distanceText");
 const fareText = document.getElementById("fareText");
-const driverEtaText = document.getElementById("driverEtaText");
+
 const driverRow = document.getElementById("driverRow");
+const driverEtaText = document.getElementById("driverEtaText");
 
 const driverCard = document.getElementById("driverCard");
 const driverName = document.getElementById("driverName");
@@ -54,14 +59,7 @@ const driverPlate = document.getElementById("driverPlate");
 /* =========================
    MAP INIT
 ========================= */
-map = L.map("map", {
-  maxBounds: [
-    [SERVICE_AREA.bounds.south, SERVICE_AREA.bounds.west],
-    [SERVICE_AREA.bounds.north, SERVICE_AREA.bounds.east]
-  ],
-  maxBoundsViscosity: 1
-}).setView([SERVICE_AREA.center.lat, SERVICE_AREA.center.lng], 13);
-
+map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
@@ -88,30 +86,23 @@ function showToast(msg) {
 }
 
 /* =========================
-   ROUTE DRAWING
+   SEARCHING ANIMATION
 ========================= */
-async function drawRoute(from, to) {
-  if (!from || !to) return;
+function startSearchingAnimation() {
+  stopSearchingAnimation();
+  uiState = UI_STATE.SEARCHING;
+  let dots = "";
+  driverRow.style.display = "flex";
+  driverEtaText.innerText = "Searching";
 
-  const res = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/` +
-      `${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
-  );
+  searchingAnimInterval = setInterval(() => {
+    dots = dots.length < 3 ? dots + "." : "";
+    driverEtaText.innerText = "Searching" + dots;
+  }, 500);
+}
 
-  const data = await res.json();
-  if (!data.routes?.length) return;
-
-  const coords = data.routes[0].geometry.coordinates.map(
-    ([lng, lat]) => [lat, lng]
-  );
-
-  routeLine && map.removeLayer(routeLine);
-  routeLine = L.polyline(coords, {
-    color: "#2563eb",
-    weight: 5
-  }).addTo(map);
-
-  map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+function stopSearchingAnimation() {
+  clearInterval(searchingAnimInterval);
 }
 
 /* =========================
@@ -145,10 +136,8 @@ function setPickup(loc) {
   selectedPickup = loc;
   pickupInput.value = loc.name;
   pickupResults.innerHTML = "";
-
   pickupMarker && map.removeLayer(pickupMarker);
   pickupMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
-
   tryPrepareRide();
 }
 
@@ -156,10 +145,8 @@ function setDropoff(loc) {
   selectedDropoff = loc;
   dropoffInput.value = loc.name;
   dropoffResults.innerHTML = "";
-
   dropoffMarker && map.removeLayer(dropoffMarker);
   dropoffMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
-
   tryPrepareRide();
 }
 
@@ -171,19 +158,18 @@ async function tryPrepareRide() {
 
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
-      `${selectedPickup.longitude},${selectedPickup.latitude};` +
-      `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
+    `${selectedPickup.longitude},${selectedPickup.latitude};` +
+    `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
   );
 
   const data = await res.json();
   if (!data.routes?.length) return;
 
-  distanceKm = data.routes[0].distance / 1000;
-  baseFare = +(distanceKm * 4 + 5).toFixed(2);
-  finalFare = baseFare;
+  const distanceKm = data.routes[0].distance / 1000;
+  const fare = distanceKm * 4 + 5;
 
   distanceText.innerText = `${distanceKm.toFixed(2)} km`;
-  fareText.innerText = `₵${finalFare.toFixed(2)}`;
+  fareText.innerText = `₵${fare.toFixed(2)}`;
 
   rideInfo.style.display = "block";
   confirmBtn.disabled = false;
@@ -192,11 +178,12 @@ async function tryPrepareRide() {
 }
 
 /* =========================
-   DRIVER PREVIEW (SAFE)
+   DRIVER PREVIEW (REAL + SIM)
 ========================= */
 function startDriverScan() {
-  if (assignedDriver) return; // 🔒 do not override assigned driver
+  if (assignedDriver) return;
   clearInterval(pickupScanInterval);
+  startSearchingAnimation();
   pickupScanInterval = setInterval(loadDriversForPreview, 15000);
   loadDriversForPreview();
 }
@@ -204,40 +191,34 @@ function startDriverScan() {
 async function loadDriversForPreview() {
   if (!selectedPickup || assignedDriver) return;
 
-  const res = await fetch(`${API_BASE}/tracking/drivers/live`);
-  const drivers = await res.json();
-  if (!drivers.length) return;
+  let drivers = [];
+  try {
+    const res = await fetch(`${API_BASE}/tracking/drivers/live`);
+    drivers = await res.json();
+  } catch {}
+
+  // 🔁 FALLBACK SIMULATION (DEV ONLY)
+  if (!drivers.length) {
+    drivers = simulateDrivers(selectedPickup);
+  }
 
   previewDriver = drivers
     .map(d => ({
       ...d,
       score:
-        (1 - haversine(d.lat, d.lng, selectedPickup.latitude, selectedPickup.longitude) / 8) * 0.6 +
-        ((d.rating || 4.8) / 5) * 0.4
+        (1 - haversine(d.lat, d.lng,
+          selectedPickup.latitude,
+          selectedPickup.longitude) / 6)
     }))
     .sort((a, b) => b.score - a.score)[0];
 
   if (!previewDriver) return;
 
-  const eta = await calculateDriverETA(previewDriver);
-  driverRow.style.display = "flex";
-  driverEtaText.innerText = `${eta.eta_min} min`;
+  stopSearchingAnimation();
+  uiState = UI_STATE.PREVIEW;
 
+  driverEtaText.innerText = `${previewDriver.eta} min`;
   showDriverCard(previewDriver);
-}
-
-/* =========================
-   DRIVER ETA
-========================= */
-async function calculateDriverETA(driver) {
-  const res = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/` +
-      `${driver.lng},${driver.lat};` +
-      `${selectedPickup.longitude},${selectedPickup.latitude}?overview=false`
-  );
-
-  const data = await res.json();
-  return { eta_min: Math.ceil(data.routes[0].duration / 60) };
 }
 
 /* =========================
@@ -269,31 +250,19 @@ confirmBtn.onclick = async () => {
    DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
-  if (!driver) return;
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
-  driverVehicle.innerText = driver.vehicle ?? "Vehicle";
-  driverPlate.innerText = driver.plate ?? "—";
+  driverVehicle.innerText = uiState === UI_STATE.ASSIGNED
+    ? driver.vehicle
+    : "Assigned after confirmation";
+  driverPlate.innerText = uiState === UI_STATE.ASSIGNED
+    ? driver.plate
+    : "—";
   driverCard.classList.remove("hidden");
 }
 
 /* =========================
-   DRIVER MARKER
-========================= */
-function updateDriverPosition(lat, lng) {
-  const latLng = [lat, lng];
-
-  if (!assignedDriverMarker) {
-    assignedDriverMarker = L.marker(latLng, {
-      icon: L.divIcon({ html: "🚗", className: "car-marker" })
-    }).addTo(map);
-  } else {
-    assignedDriverMarker.setLatLng(latLng);
-  }
-}
-
-/* =========================
-   WEBSOCKET (FINAL)
+   WEBSOCKET
 ========================= */
 if (token) {
   const ws = new WebSocket(`${WS_BASE}/tracking/ws/rider?token=${token}`);
@@ -302,13 +271,11 @@ if (token) {
     const msg = JSON.parse(e.data);
 
     if (msg.type === "ride.accepted") {
+      uiState = UI_STATE.ASSIGNED;
       assignedDriver = msg.driver;
       clearInterval(pickupScanInterval);
-
       showToast("🚗 Driver accepted your ride");
       showDriverCard(assignedDriver);
-
-      return;
     }
 
     if (
@@ -319,23 +286,26 @@ if (token) {
       updateDriverPosition(msg.lat, msg.lng);
     }
 
-    if (msg.type === "ride.started") {
-      drawRoute(
-        { lat: selectedPickup.latitude, lng: selectedPickup.longitude },
-        { lat: selectedDropoff.latitude, lng: selectedDropoff.longitude }
-      );
-    }
-
     if (msg.type === "driver.stalled") {
       showToast("⚠️ Driver unavailable. Reassigning...");
       assignedDriver = null;
-
-      routeLine && map.removeLayer(routeLine);
-      assignedDriverMarker && map.removeLayer(assignedDriverMarker);
-
       startDriverScan();
     }
   };
 }
- 
 
+/* =========================
+   DRIVER SIMULATION (SAFE)
+========================= */
+function simulateDrivers(pickup) {
+  return Array.from({ length: 3 }).map((_, i) => ({
+    driver_id: i + 1,
+    name: `Test Driver ${i + 1}`,
+    rating: (4.6 + Math.random() * 0.4).toFixed(1),
+    vehicle: "Toyota Corolla",
+    plate: `GT-${1200 + i}`,
+    lat: pickup.latitude + (Math.random() - 0.5) / 300,
+    lng: pickup.longitude + (Math.random() - 0.5) / 300,
+    eta: Math.floor(2 + Math.random() * 6)
+  }));
+}
