@@ -4,7 +4,7 @@
 import { API_BASE, WS_BASE } from "./config.js";
 
 /* =========================
-   SOFT UI STATE (NON-BREAKING)
+   UI STATE MACHINE
 ========================= */
 const UI_STATE = {
   IDLE: "idle",
@@ -197,7 +197,6 @@ async function loadDriversForPreview() {
     drivers = await res.json();
   } catch {}
 
-  // 🔁 FALLBACK SIMULATION (DEV ONLY)
   if (!drivers.length) {
     drivers = simulateDrivers(selectedPickup);
   }
@@ -205,10 +204,11 @@ async function loadDriversForPreview() {
   previewDriver = drivers
     .map(d => ({
       ...d,
-      score:
-        (1 - haversine(d.lat, d.lng,
-          selectedPickup.latitude,
-          selectedPickup.longitude) / 6)
+      score: 1 - haversine(
+        d.lat, d.lng,
+        selectedPickup.latitude,
+        selectedPickup.longitude
+      ) / 6
     }))
     .sort((a, b) => b.score - a.score)[0];
 
@@ -217,7 +217,7 @@ async function loadDriversForPreview() {
   stopSearchingAnimation();
   uiState = UI_STATE.PREVIEW;
 
-  driverEtaText.innerText = `${previewDriver.eta} min`;
+  driverEtaText.innerText = `${previewDriver.eta ?? "—"} min`;
   showDriverCard(previewDriver);
 }
 
@@ -250,15 +250,35 @@ confirmBtn.onclick = async () => {
    DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
+  if (!driver) return;
+
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
-  driverVehicle.innerText = uiState === UI_STATE.ASSIGNED
-    ? driver.vehicle
-    : "Assigned after confirmation";
-  driverPlate.innerText = uiState === UI_STATE.ASSIGNED
-    ? driver.plate
-    : "—";
+  driverVehicle.innerText =
+    uiState === UI_STATE.ASSIGNED
+      ? driver.vehicle
+      : "Assigned after confirmation";
+  driverPlate.innerText =
+    uiState === UI_STATE.ASSIGNED
+      ? driver.plate
+      : "—";
+
   driverCard.classList.remove("hidden");
+}
+
+/* =========================
+   DRIVER MARKER
+========================= */
+function updateDriverPosition(lat, lng) {
+  const latLng = [lat, lng];
+
+  if (!assignedDriverMarker) {
+    assignedDriverMarker = L.marker(latLng, {
+      icon: L.divIcon({ html: "🚗", className: "car-marker" })
+    }).addTo(map);
+  } else {
+    assignedDriverMarker.setLatLng(latLng);
+  }
 }
 
 /* =========================
@@ -274,6 +294,7 @@ if (token) {
       uiState = UI_STATE.ASSIGNED;
       assignedDriver = msg.driver;
       clearInterval(pickupScanInterval);
+
       showToast("🚗 Driver accepted your ride");
       showDriverCard(assignedDriver);
     }
@@ -295,7 +316,7 @@ if (token) {
 }
 
 /* =========================
-   DRIVER SIMULATION (SAFE)
+   DRIVER SIMULATION
 ========================= */
 function simulateDrivers(pickup) {
   return Array.from({ length: 3 }).map((_, i) => ({
