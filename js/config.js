@@ -1,15 +1,28 @@
-// js/config.js
+/* =========================
+   ENV DETECTION
+========================= */
+const IS_PROD =
+  typeof window !== "undefined" &&
+  window.location &&
+  window.location.hostname !== "localhost" &&
+  window.location.hostname !== "127.0.0.1";
 
 /* =========================
    API BASE URLs
 ========================= */
-export const API_BASE = "https://shamor-ride-gh.onrender.com";
+export const API_BASE = IS_PROD
+  ? "https://shamor-ride-gh.onrender.com"
+  : "http://localhost:8000";
+
 export const API_BASE_URL = API_BASE; // alias for consistency
 
 /* =========================
    WEBSOCKET BASE URL
+   🔥 AUTO FIXES ws / wss
 ========================= */
-export const WS_BASE = "wss://shamor-ride-gh.onrender.com";
+export const WS_BASE = IS_PROD
+  ? "wss://shamor-ride-gh.onrender.com"
+  : "ws://localhost:8000";
 
 /* =========================
    PAYSTACK CONFIG
@@ -20,7 +33,7 @@ export const PAYSTACK_PUBLIC_KEY =
 /* =========================
    ENV FLAGS
 ========================= */
-export const IS_TESTING = true;
+export const IS_TESTING = !IS_PROD;
 
 /* =========================
    AUTH TOKEN HELPERS
