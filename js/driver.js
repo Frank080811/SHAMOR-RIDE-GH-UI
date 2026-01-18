@@ -55,7 +55,7 @@ let driverWS = null;
 function startDriverSocket() {
   if (!token) return;
 
-  driverWS = new WebSocket(`${WS_BASE}/ws/driver?token=${token}`);
+  driverWS = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
 
   driverWS.onopen = () => {
     console.log("✅ Driver WebSocket connected");

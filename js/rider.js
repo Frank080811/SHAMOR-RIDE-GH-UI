@@ -291,7 +291,7 @@ function updateDriverPosition(lat, lng) {
    WEBSOCKET (WITH STALL + ROUTES)
 ========================= */
 if (token) {
-  const ws = new WebSocket(`${WS_BASE}/ws/rider?token=${token}`);
+  const ws = new WebSocket(`${WS_BASE}/tracking/ws/rider?token=${token}`);
 
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
