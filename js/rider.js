@@ -13,6 +13,7 @@ const SERVICE_AREA = {
 ========================= */
 let map, pickupMarker, dropoffMarker;
 let assignedDriverMarker = null;
+let routeLine = null;
 
 let selectedPickup = null;
 let selectedDropoff = null;
@@ -49,7 +50,6 @@ const driverName = document.getElementById("driverName");
 const driverRating = document.getElementById("driverRating");
 const driverVehicle = document.getElementById("driverVehicle");
 const driverPlate = document.getElementById("driverPlate");
-const driverCallBtn = document.getElementById("driverCallBtn");
 
 /* =========================
    MAP INIT
@@ -88,6 +88,31 @@ function showToast(msg) {
 }
 
 /* =========================
+   ROUTE DRAWING
+========================= */
+async function drawRoute(from, to) {
+  const res = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
+  );
+
+  const data = await res.json();
+  if (!data.routes?.length) return;
+
+  const coords = data.routes[0].geometry.coordinates.map(
+    ([lng, lat]) => [lat, lng]
+  );
+
+  routeLine && map.removeLayer(routeLine);
+  routeLine = L.polyline(coords, {
+    color: "#2563eb",
+    weight: 5
+  }).addTo(map);
+
+  map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+}
+
+/* =========================
    LOCATION SEARCH
 ========================= */
 async function searchLocations(query, container, onSelect) {
@@ -105,13 +130,11 @@ async function searchLocations(query, container, onSelect) {
   });
 }
 
-pickupInput.addEventListener("input", e =>
-  searchLocations(e.target.value, pickupResults, setPickup)
-);
+pickupInput.oninput = e =>
+  searchLocations(e.target.value, pickupResults, setPickup);
 
-dropoffInput.addEventListener("input", e =>
-  searchLocations(e.target.value, dropoffResults, setDropoff)
-);
+dropoffInput.oninput = e =>
+  searchLocations(e.target.value, dropoffResults, setDropoff);
 
 /* =========================
    PICKUP / DROPOFF
@@ -121,7 +144,7 @@ function setPickup(loc) {
   pickupInput.value = loc.name;
   pickupResults.innerHTML = "";
 
-  if (pickupMarker) map.removeLayer(pickupMarker);
+  pickupMarker && map.removeLayer(pickupMarker);
   pickupMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
 
   tryPrepareRide();
@@ -132,7 +155,7 @@ function setDropoff(loc) {
   dropoffInput.value = loc.name;
   dropoffResults.innerHTML = "";
 
-  if (dropoffMarker) map.removeLayer(dropoffMarker);
+  dropoffMarker && map.removeLayer(dropoffMarker);
   dropoffMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
 
   tryPrepareRide();
@@ -170,37 +193,30 @@ async function tryPrepareRide() {
    DRIVER PREVIEW
 ========================= */
 function startDriverScan() {
-  if (pickupScanInterval) clearInterval(pickupScanInterval);
+  clearInterval(pickupScanInterval);
   pickupScanInterval = setInterval(loadDriversForPreview, 15000);
   loadDriversForPreview();
 }
 
 async function loadDriversForPreview() {
+  if (!selectedPickup) return;
+
   const res = await fetch(`${API_BASE}/tracking/drivers/live`);
   const drivers = await res.json();
-  if (!drivers.length || !selectedPickup) return;
+  if (!drivers.length) return;
 
-  const scored = drivers.map(d => {
-    const distance = haversine(
-      d.lat, d.lng,
-      selectedPickup.latitude,
-      selectedPickup.longitude
-    );
-
-    return {
+  previewDriver = drivers
+    .map(d => ({
       ...d,
       score:
-        (1 - distance / 8) * 0.6 +
+        (1 - haversine(d.lat, d.lng, selectedPickup.latitude, selectedPickup.longitude) / 8) * 0.6 +
         ((d.rating || 4.8) / 5) * 0.4
-    };
-  });
+    }))
+    .sort((a, b) => b.score - a.score)[0];
 
-  previewDriver = scored.sort((a, b) => b.score - a.score)[0];
   if (!previewDriver) return;
 
   const eta = await calculateDriverETA(previewDriver);
-  if (!eta) return;
-
   driverRow.style.display = "flex";
   driverEtaText.innerText = `${eta.eta_min} min`;
 
@@ -216,10 +232,7 @@ async function calculateDriverETA(driver) {
     `${driver.lng},${driver.lat};` +
     `${selectedPickup.longitude},${selectedPickup.latitude}?overview=false`
   );
-
   const data = await res.json();
-  if (!data.routes?.length) return null;
-
   return { eta_min: Math.ceil(data.routes[0].duration / 60) };
 }
 
@@ -252,26 +265,18 @@ confirmBtn.onclick = async () => {
    DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
-  if (!driver) return;
-
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
   driverVehicle.innerText = driver.vehicle ?? "Vehicle";
   driverPlate.innerText = driver.plate ?? "—";
-
-  if (driver.phone) {
-    driverCallBtn.href = `tel:${driver.phone}`;
-    driverCallBtn.style.display = "block";
-  }
-
   driverCard.classList.remove("hidden");
 }
 
 /* =========================
-   LIVE TRACKING
+   DRIVER MARKER
 ========================= */
-function updateDriverPosition(driver) {
-  const latLng = [driver.lat, driver.lng];
+function updateDriverPosition(lat, lng) {
+  const latLng = [lat, lng];
 
   if (!assignedDriverMarker) {
     assignedDriverMarker = L.marker(latLng, {
@@ -280,38 +285,50 @@ function updateDriverPosition(driver) {
   } else {
     assignedDriverMarker.setLatLng(latLng);
   }
-
-  map.panTo(latLng, { animate: true, duration: 0.5 });
 }
 
 /* =========================
-   WEBSOCKET (FIXED WITH TOKEN)
+   WEBSOCKET (WITH STALL + ROUTES)
 ========================= */
-if (!token) {
-  console.error("No auth token found. Rider WebSocket not started.");
-} else {
+if (token) {
   const ws = new WebSocket(`${WS_BASE}/ws/rider?token=${token}`);
 
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
 
-    if (msg.type === "ride.accepted" && msg.driver) {
+    if (msg.type === "ride.accepted") {
       assignedDriver = msg.driver;
+      clearInterval(pickupScanInterval);
       showToast("🚗 Driver accepted your ride");
       showDriverCard(assignedDriver);
+
+      drawRoute(
+        { lat: msg.driver.lat, lng: msg.driver.lng },
+        { lat: selectedPickup.latitude, lng: selectedPickup.longitude }
+      );
     }
 
-    if (msg.type === "driver_location" && assignedDriver) {
-      updateDriverPosition(msg);
+    if (
+      msg.type === "driver_location" &&
+      assignedDriver &&
+      msg.driver_id === assignedDriver.driver_id
+    ) {
+      updateDriverPosition(msg.lat, msg.lng);
     }
 
-    if (msg.type === "ride.declined") {
-      showToast("❌ Driver declined. Searching again...");
+    if (msg.type === "driver.stalled") {
+      showToast("⚠️ Driver unavailable. Reassigning...");
+      assignedDriver = null;
+      routeLine && map.removeLayer(routeLine);
+      assignedDriverMarker && map.removeLayer(assignedDriverMarker);
       startDriverScan();
     }
-  };
 
-  ws.onerror = () => {
-    console.error("Rider WebSocket error");
+    if (msg.type === "ride.started") {
+      drawRoute(
+        { lat: selectedPickup.latitude, lng: selectedPickup.longitude },
+        { lat: selectedDropoff.latitude, lng: selectedDropoff.longitude }
+      );
+    }
   };
 }
