@@ -1,7 +1,7 @@
 /* =========================
    CONFIG
 ========================= */
-import { API_BASE, WS_BASE, getToken, auth } from "./config.js";
+import { API_BASE, WS_BASE } from "./config.js";
 
 const SERVICE_AREA = {
   center: { lat: 6.8970, lng: -1.5250 },
@@ -11,7 +11,9 @@ const SERVICE_AREA = {
 /* =========================
    STATE
 ========================= */
-let map, pickupMarker, dropoffMarker, routeLine;
+let map, pickupMarker, dropoffMarker;
+let assignedDriverMarker = null;
+
 let selectedPickup = null;
 let selectedDropoff = null;
 
@@ -19,14 +21,13 @@ let distanceKm = 0;
 let baseFare = 0;
 let finalFare = 0;
 
-let nearestDriver = null;
+let previewDriver = null;
 let assignedDriver = null;
-let assignedDriverMarker = null;
+let activeRideId = null;
 
-let pickupETAInterval = null;
+let pickupScanInterval = null;
 let countdownInterval = null;
 let etaSeconds = 0;
-let totalEtaSeconds = 0;
 
 let lastDriverLatLng = null;
 let stallTimer = null;
@@ -43,22 +44,17 @@ const confirmBtn = document.getElementById("confirmBtn");
 const rideInfo = document.getElementById("rideInfo");
 const distanceText = document.getElementById("distanceText");
 const fareText = document.getElementById("fareText");
+const driverEtaText = document.getElementById("driverEtaText");
+const driverRow = document.getElementById("driverRow");
 
-const paymentModal = document.getElementById("paymentModal");
-const paySummary = document.getElementById("paySummary");
-const payBtn = document.getElementById("payBtn");
-
-const token = localStorage.getItem("access_token");
-const userEmail = localStorage.getItem("user_email") || "rider@email.com";
-
-const driverPlate = document.getElementById("driverPlate");
 const driverCard = document.getElementById("driverCard");
 const driverName = document.getElementById("driverName");
 const driverRating = document.getElementById("driverRating");
 const driverVehicle = document.getElementById("driverVehicle");
+const driverPlate = document.getElementById("driverPlate");
 const driverCallBtn = document.getElementById("driverCallBtn");
 
-
+const token = localStorage.getItem("access_token");
 
 /* =========================
    MAP INIT
@@ -94,12 +90,6 @@ function showToast(msg) {
   t.innerText = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
-}
-
-function detectSurge(driverCount) {
-  if (driverCount < 3) return 1.5;
-  if (driverCount < 6) return 1.2;
-  return 1.0;
 }
 
 /* =========================
@@ -139,8 +129,7 @@ function setPickup(loc) {
   if (pickupMarker) map.removeLayer(pickupMarker);
   pickupMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
 
-  tryDrawRoute();
-  startPickupETA();
+  tryPrepareRide();
 }
 
 function setDropoff(loc) {
@@ -151,13 +140,13 @@ function setDropoff(loc) {
   if (dropoffMarker) map.removeLayer(dropoffMarker);
   dropoffMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
 
-  tryDrawRoute();
+  tryPrepareRide();
 }
 
 /* =========================
    ROUTE + FARE
 ========================= */
-async function tryDrawRoute() {
+async function tryPrepareRide() {
   if (!selectedPickup || !selectedDropoff) return;
 
   const res = await fetch(
@@ -175,123 +164,78 @@ async function tryDrawRoute() {
 
   distanceText.innerText = `${distanceKm.toFixed(2)} km`;
   fareText.innerText = `₵${finalFare.toFixed(2)}`;
-  rideInfo.style.display = "block";
 
+  rideInfo.style.display = "block";
   confirmBtn.disabled = false;
+
+  startDriverScan();
 }
 
 /* =========================
-   DRIVER DISCOVERY + ETA
+   DRIVER PREVIEW MATCHING
 ========================= */
-async function startPickupETA() {
-  if (pickupETAInterval) clearInterval(pickupETAInterval);
-  pickupETAInterval = setInterval(loadLiveDrivers, 15000);
-  loadLiveDrivers();
+function startDriverScan() {
+  if (pickupScanInterval) clearInterval(pickupScanInterval);
+  pickupScanInterval = setInterval(loadDriversForPreview, 15000);
+  loadDriversForPreview();
 }
 
-async function loadLiveDrivers() {
-  if (!selectedPickup) return;
-
+async function loadDriversForPreview() {
   const res = await fetch(`${API_BASE}/tracking/drivers/live`);
   const drivers = await res.json();
   if (!drivers.length) return;
 
-  nearestDriver = drivers
-    .map(d => ({
+  const scored = drivers.map(d => {
+    const distance = haversine(
+      d.lat, d.lng,
+      selectedPickup.latitude,
+      selectedPickup.longitude
+    );
+
+    return {
       ...d,
-      distance_km: haversine(
-        d.lat, d.lng,
-        selectedPickup.latitude,
-        selectedPickup.longitude
-      )
-    }))
-    .sort((a, b) => a.distance_km - b.distance_km)[0];
+      score:
+        (1 - distance / 8) * 0.5 +
+        ((d.rating || 4.5) / 5) * 0.3 +
+        (d.on_trip && d.near_dropoff ? 0.2 : 0)
+    };
+  });
 
-  if (nearestDriver.distance_km > 10) {
-    showToast("❌ No nearby drivers");
-    confirmBtn.disabled = true;
-    return;
-  }
+  previewDriver = scored.sort((a, b) => b.score - a.score)[0];
+  if (!previewDriver) return;
 
-  const surge = detectSurge(drivers.length);
-  finalFare = +(baseFare * surge).toFixed(2);
-  fareText.innerText = `₵${finalFare.toFixed(2)}`;
-
-  const eta = await calculateDriverETA(nearestDriver);
+  const eta = await calculateDriverETA(previewDriver);
   if (!eta) return;
 
-  startCountdown(eta.eta_min);
+  driverRow.style.display = "flex";
+  driverEtaText.innerText = `${eta.eta_min} min`;
 
-  if (assignedDriver && nearestDriver.driver_id === assignedDriver.driver_id) {
-    updateAssignedDriverPosition(nearestDriver);
-    monitorDriverMovement(nearestDriver);
-    checkPickupGeofence(nearestDriver);
-  }
-
-  if (
-    assignedDriver &&
-    nearestDriver.driver_id === assignedDriver.driver_id
-  ) {
-    showDriverCard(nearestDriver);
-  }
-  
+  showDriverCard(previewDriver);
 }
 
+/* =========================
+   DRIVER ETA
+========================= */
 async function calculateDriverETA(driver) {
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
     `${driver.lng},${driver.lat};` +
     `${selectedPickup.longitude},${selectedPickup.latitude}?overview=false`
   );
+
   const data = await res.json();
   if (!data.routes?.length) return null;
 
-  return {
-    eta_min: Math.ceil(data.routes[0].duration / 60)
-  };
+  return { eta_min: Math.ceil(data.routes[0].duration / 60) };
 }
 
 /* =========================
-   COUNTDOWN
+   CONFIRM → REQUEST RIDE
 ========================= */
-function startCountdown(minutes) {
-  etaSeconds = minutes * 60;
-  totalEtaSeconds = etaSeconds;
+confirmBtn.onclick = async () => {
+  confirmBtn.disabled = true;
+  showToast("🔍 Sending request to driver...");
 
-  clearInterval(countdownInterval);
-  countdownInterval = setInterval(() => {
-    etaSeconds--;
-    if (etaSeconds <= 0) {
-      clearInterval(countdownInterval);
-      showToast("🚕 Driver arriving");
-    }
-  }, 1000);
-}
-
-/* =========================
-   CONFIRM & PAY
-========================= */
-confirmBtn.onclick = () => {
-  paySummary.innerText = `Fare: ₵${finalFare.toFixed(2)}`;
-  paymentModal.style.display = "flex";
-};
-
-window.closePayment = () => {
-  paymentModal.style.display = "none";
-};
-
-payBtn.onclick = () => {
-  payWithPaystack({
-    amount: finalFare,
-    email: userEmail,
-    onSuccess: createRide
-  });
-};
-
-/* =========================
-   CREATE RIDE
-========================= */
-async function createRide(paymentRef) {
   const res = await fetch(`${API_BASE}/rides/request`, {
     method: "POST",
     headers: {
@@ -299,31 +243,21 @@ async function createRide(paymentRef) {
       Authorization: `Bearer ${token}`
     },
     body: JSON.stringify({
-      pickup_location_id: selectedPickup.id,
-      dropoff_location_id: selectedDropoff.id,
-      payment_reference: paymentRef
+      pickup_lat: selectedPickup.latitude,
+      pickup_lng: selectedPickup.longitude,
+      dropoff_lat: selectedDropoff.latitude,
+      dropoff_lng: selectedDropoff.longitude
     })
   });
 
-  if (!res.ok) {
-    const err = await res.json();
-    return alert(err.detail || "Ride failed");
-  }
-
-  paymentModal.style.display = "none";
-  assignedDriver = nearestDriver;
-
-  showDriverCard(assignedDriver);
-  showToast(`🚗 Driver assigned (${assignedDriver.plate || "Plate N/A"})`);
-  
-}
+  const ride = await res.json();
+  activeRideId = ride.ride_id;
+};
 
 /* =========================
-  SHOW DRIVER DETAILS
+   SHOW DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
-  if (!driverCard) return;
-
   driverName.innerText = driver.name || "Driver";
   driverRating.innerText = driver.rating || "4.8";
   driverVehicle.innerText = driver.vehicle || "Vehicle";
@@ -332,17 +266,15 @@ function showDriverCard(driver) {
   if (driver.phone) {
     driverCallBtn.href = `tel:${driver.phone}`;
     driverCallBtn.style.display = "block";
-  } else {
-    driverCallBtn.style.display = "none";
   }
 
   driverCard.classList.remove("hidden");
 }
 
 /* =========================
-   DRIVER MARKER + SAFETY
+   LIVE TRACKING
 ========================= */
-function updateAssignedDriverPosition(driver) {
+function updateDriverPosition(driver) {
   const latLng = [driver.lat, driver.lng];
 
   if (!assignedDriverMarker) {
@@ -356,59 +288,26 @@ function updateAssignedDriverPosition(driver) {
   map.panTo(latLng, { animate: true, duration: 0.5 });
 }
 
-function monitorDriverMovement(driver) {
-  if (!lastDriverLatLng) {
-    lastDriverLatLng = [driver.lat, driver.lng];
-    return;
-  }
-
-  const moved =
-    lastDriverLatLng[0] !== driver.lat ||
-    lastDriverLatLng[1] !== driver.lng;
-
-  if (!moved) {
-    if (!stallTimer) {
-      stallTimer = setTimeout(() => {
-        showToast("❌ Driver unresponsive. Ride cancelled.");
-        assignedDriver = null;
-      }, 120000);
-    }
-  } else {
-    clearTimeout(stallTimer);
-    stallTimer = null;
-    lastDriverLatLng = [driver.lat, driver.lng];
-  }
-}
-
 /* =========================
-   PICKUP GEOFENCE
+   WEBSOCKET EVENTS
 ========================= */
-function checkPickupGeofence(driver) {
-  const distanceKm = haversine(
-    driver.lat,
-    driver.lng,
-    selectedPickup.latitude,
-    selectedPickup.longitude
-  );
-
-  if (distanceKm < 0.15) {
-    showToast("📍 Driver has arrived");
-  }
-}
-
-/* =========================
-   WEBSOCKET DRIVER UPDATES
-========================= */
-const ws = new WebSocket("ws://localhost:8000/ws/rider");
+const ws = new WebSocket(`${WS_BASE}/ws/rider`);
 
 ws.onmessage = e => {
-  const data = JSON.parse(e.data);
-  if (
-    assignedDriver &&
-    data.driver_id === assignedDriver.driver_id
-  ) {
-    updateAssignedDriverPosition(data);
-    monitorDriverMovement(data);
-    checkPickupGeofence(data);
+  const msg = JSON.parse(e.data);
+
+  if (msg.type === "ride.accepted" && msg.ride_id === activeRideId) {
+    assignedDriver = msg.driver;
+    showToast("🚗 Driver accepted your ride");
+    showDriverCard(assignedDriver);
+  }
+
+  if (msg.type === "driver.location" && assignedDriver) {
+    updateDriverPosition(msg);
+  }
+
+  if (msg.type === "ride.declined") {
+    showToast("❌ Driver declined. Searching again...");
+    startDriverScan();
   }
 };

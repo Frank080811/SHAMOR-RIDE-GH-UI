@@ -12,12 +12,14 @@
   --primary:#7c5cff;
   --primary-dark:#5a3cff;
   --bg:#0f1220;
-  --glass:rgba(255,255,255,.14);
-  --glass-strong:rgba(255,255,255,.2);
+  --panel:#12152a;
+  --glass:rgba(255,255,255,.12);
   --text:#eaeaff;
+  --muted:#b6b6d9;
   --success:#22c55e;
   --danger:#ef4444;
-  --shadow:0 20px 40px rgba(0,0,0,.35);
+  --warning:#facc15;
+  --shadow:0 20px 45px rgba(0,0,0,.45);
 }
 
 /* ===== RESET ===== */
@@ -27,26 +29,34 @@
   -webkit-tap-highlight-color:transparent;
 }
 
-body {
+html,body {
   margin:0;
-  background:radial-gradient(circle at top,#171a33,#0f1220 60%);
+  height:100%;
+  background:radial-gradient(circle at top,#171a33,#0f1220 65%);
   color:var(--text);
   overflow:hidden;
 }
 
 /* ===== HEADER ===== */
 header {
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:800;
   padding:1rem;
   background:linear-gradient(135deg,var(--primary),var(--primary-dark));
   text-align:center;
-  font-weight:700;
+  font-weight:800;
   letter-spacing:.3px;
-  box-shadow:0 6px 20px rgba(0,0,0,.35);
+  box-shadow:0 8px 25px rgba(0,0,0,.35);
 }
 
 /* ===== MAP ===== */
 #map {
-  height:65vh;
+  position:absolute;
+  top:60px;
+  bottom:260px;
+  left:0;
+  right:0;
   filter:saturate(1.05) contrast(1.05);
 }
 
@@ -55,10 +65,11 @@ header {
   position:fixed;
   bottom:0; left:0; right:0;
   padding:1rem;
-  background:linear-gradient(180deg,var(--glass-strong),var(--glass));
-  backdrop-filter:blur(22px);
-  border-radius:22px 22px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.08));
+  backdrop-filter:blur(24px);
+  border-radius:26px 26px 0 0;
   box-shadow:var(--shadow);
+  z-index:700;
   animation:sheetUp .6s cubic-bezier(.25,.8,.25,1);
 }
 
@@ -69,12 +80,11 @@ header {
 
 /* ===== STATUS ===== */
 .status {
-  font-size:.85rem;
-  opacity:.9;
-  margin-bottom:.6rem;
   display:flex;
   align-items:center;
-  gap:.4rem;
+  gap:.45rem;
+  font-size:.85rem;
+  color:var(--muted);
 }
 
 .status::before {
@@ -96,8 +106,8 @@ header {
 .card {
   background:linear-gradient(160deg,#15193a,#0f132e);
   padding:1rem;
-  border-radius:16px;
-  margin-bottom:.6rem;
+  border-radius:18px;
+  margin:.6rem 0;
   box-shadow:var(--shadow);
   animation:fadeIn .4s ease;
 }
@@ -107,32 +117,20 @@ header {
   to { opacity:1; transform:translateY(0); }
 }
 
-/* Ride request emphasis */
+/* ===== RIDE REQUEST CARD ===== */
 #rideCard {
-  border:1px solid rgba(124,92,255,.35);
+  border:1px solid rgba(124,92,255,.45);
 }
 
-/* ===== BUTTONS ===== */
-.btn {
-  width:100%;
-  padding:1rem;
-  border-radius:16px;
-  border:none;
-  font-weight:700;
-  margin-top:.45rem;
-  cursor:pointer;
-  transition:transform .15s ease, box-shadow .15s ease, background .2s ease;
+.ride-title {
+  font-weight:800;
+  margin-bottom:.3rem;
 }
 
-.btn:active { transform:scale(.97); }
-.btn:hover { box-shadow:0 10px 25px rgba(0,0,0,.4); }
-
-.accept { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
-.reject { background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; }
-.primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; }
-.secondary { background:#1f243f; color:#fff; }
-
-#sosBtn { letter-spacing:.4px; }
+.ride-meta {
+  font-size:.8rem;
+  color:var(--muted);
+}
 
 /* ===== ETA BAR ===== */
 .eta {
@@ -147,27 +145,53 @@ header {
 .eta-fill {
   height:100%;
   width:0%;
-  background:linear-gradient(90deg,#22c55e,#7c5cff);
+  background:linear-gradient(90deg,var(--success),var(--primary));
   transition:width .6s ease;
 }
 
-/* ===== TOAST ===== */
-.toast {
-  position:fixed;
-  bottom:90px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#12152a;
-  padding:.8rem 1.2rem;
-  border-radius:14px;
-  box-shadow:0 12px 30px rgba(0,0,0,.4);
-  z-index:999;
-  animation:toastUp .4s ease;
+/* ===== BUTTONS ===== */
+.btn {
+  width:100%;
+  padding:1rem;
+  border-radius:18px;
+  border:none;
+  font-weight:800;
+  margin-top:.45rem;
+  cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease;
 }
 
-@keyframes toastUp {
-  from { opacity:0; transform:translate(-50%,20px); }
-  to { opacity:1; transform:translate(-50%,0); }
+.btn:active { transform:scale(.97); }
+
+.primary {
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:#fff;
+}
+
+.accept {
+  background:linear-gradient(135deg,var(--success),#16a34a);
+  color:#06240f;
+}
+
+.reject {
+  background:linear-gradient(135deg,var(--danger),#dc2626);
+  color:#fff;
+}
+
+.secondary {
+  background:#1f243f;
+  color:#fff;
+}
+
+.warning {
+  background:linear-gradient(135deg,var(--warning),#eab308);
+  color:#1f1a00;
+}
+
+/* ===== CAR MARKER ===== */
+.car-marker {
+  font-size:28px;
+  transition:transform .4s ease;
 }
 
 /* ===== HISTORY PANEL ===== */
@@ -186,15 +210,19 @@ header {
   transition:transform .4s ease;
 }
 
-.history.show {
-  transform:translateX(0);
-}
+.history.show { transform:translateX(0); }
 
-/* ===== CAR MARKER ===== */
-.car-marker {
-  font-size:28px;
-  transition:transform .4s ease;
-  transform-origin:center;
+/* ===== TOAST ===== */
+.toast {
+  position:fixed;
+  bottom:280px;
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--panel);
+  padding:.8rem 1.2rem;
+  border-radius:16px;
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+  z-index:999;
 }
 
 /* ===== UTIL ===== */
@@ -202,7 +230,7 @@ header {
 
 /* ===== MOBILE ===== */
 @media(max-width:380px){
-  .btn { padding:.85rem; }
+  .btn { padding:.9rem; }
   header { font-size:.95rem; }
 }
 </style>
@@ -211,40 +239,66 @@ header {
 <body>
 
 <header>🚗 Driver Dashboard</header>
+
 <div id="map"></div>
 
 <div class="sheet">
-  <div class="status" id="driverStatus">📡 Online — waiting for rides</div>
-  <hr style="border:none;height:1px;background:rgba(255,255,255,.1);margin:.6rem 0">
 
+  <div class="status" id="driverStatus">
+    📡 Online — waiting for rides
+  </div>
+
+  <!-- RIDE REQUEST -->
   <div id="rideCard" class="card hidden">
-    <div id="rideInfo">New ride request</div>
+    <div class="ride-title">🚕 New Ride Request</div>
+    <div id="rideInfo" class="ride-meta">Pickup & destination details</div>
+
     <button id="acceptBtn" class="btn accept">Accept Ride</button>
     <button id="rejectBtn" class="btn reject">Reject</button>
   </div>
 
-  <div class="card" style="border:1px solid rgba(255,255,255,.08)">
+  <!-- EARNINGS -->
+  <div class="card">
     <div id="earningsToday">💰 Today: ₵0.00</div>
     <div id="earningsTotal">📊 Total: ₵0.00</div>
+    <div class="status">⭐ Rating: 4.8</div>
   </div>
 
-  <button id="sosBtn" class="btn reject">🚨 SOS</button>
-  <div class="status">⭐ Rating: 4.8</div>
-
-  <button id="startBtn" class="btn primary hidden">Start Trip</button>
-  <button id="endBtn" class="btn secondary hidden">End Trip</button>
-  <button id="toggleOnlineBtn" class="btn secondary">Go Offline</button>
-  <button id="navigateBtn" class="btn primary hidden">Navigate to Pickup</button>
+  <!-- TRIP CONTROLS -->
+  <button id="navigateBtn" class="btn primary hidden">
+    🧭 Navigate to Pickup
+  </button>
 
   <div id="etaBar" class="eta hidden">
-    <div class="eta-fill" id="etaFill"></div>
+    <div id="etaFill" class="eta-fill"></div>
   </div>
 
-  <button id="historyBtn" class="btn secondary">View History</button>
+  <button id="startBtn" class="btn primary hidden">
+    ▶ Start Trip
+  </button>
+
+  <button id="endBtn" class="btn secondary hidden">
+    ⏹ End Trip
+  </button>
+
+  <!-- SAFETY & STATUS -->
+  <button id="sosBtn" class="btn warning">
+    🚨 SOS Emergency
+  </button>
+
+  <button id="toggleOnlineBtn" class="btn secondary">
+    Go Offline
+  </button>
+
+  <button id="historyBtn" class="btn secondary">
+    🧾 View Ride History
+  </button>
+
 </div>
 
+<!-- HISTORY PANEL -->
 <div id="historyPanel" class="history">
-  <h4>🧾 Ride History</h4>
+  <h3>🧾 Ride History</h3>
   <div id="historyList"></div>
 </div>
 

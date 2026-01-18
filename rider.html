@@ -12,11 +12,13 @@
   --primary:#7c5cff;
   --primary-dark:#5a3cff;
   --bg:#0f1220;
-  --glass:rgba(255,255,255,.14);
-  --glass-strong:rgba(255,255,255,.22);
+  --panel:#12152a;
+  --glass:rgba(255,255,255,.12);
   --text:#eaeaff;
   --muted:#b6b6d9;
-  --shadow:0 18px 40px rgba(0,0,0,.4);
+  --success:#22c55e;
+  --danger:#ef4444;
+  --shadow:0 18px 40px rgba(0,0,0,.45);
 }
 
 * {
@@ -27,16 +29,20 @@
 html,body {
   margin:0;
   height:100%;
-  background:radial-gradient(circle at top,#171a33,#0f1220 60%);
+  background:radial-gradient(circle at top,#171a33,#0f1220 65%);
   color:var(--text);
   overflow:hidden;
 }
 
 /* ===== TOP BAR ===== */
 .topbar {
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:800;
   padding:1rem;
   text-align:center;
-  font-weight:700;
+  font-weight:800;
+  letter-spacing:.3px;
   background:linear-gradient(135deg,var(--primary),var(--primary-dark));
   box-shadow:0 8px 25px rgba(0,0,0,.35);
 }
@@ -52,12 +58,12 @@ html,body {
   position:fixed;
   bottom:0; left:0; right:0;
   padding:1rem;
-  background:linear-gradient(180deg,var(--glass-strong),var(--glass));
-  backdrop-filter:blur(22px);
-  border-radius:22px 22px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.08));
+  backdrop-filter:blur(24px);
+  border-radius:26px 26px 0 0;
   box-shadow:var(--shadow);
   animation:slideUp .6s cubic-bezier(.25,.8,.25,1);
-  z-index:500;
+  z-index:700;
 }
 
 @keyframes slideUp {
@@ -68,54 +74,54 @@ html,body {
 /* ===== INPUTS ===== */
 .input-group {
   position:relative;
-  margin-bottom:.5rem;
+  margin-bottom:.6rem;
 }
 
 .input-group span {
   position:absolute;
   top:50%;
-  left:.8rem;
+  left:.9rem;
   transform:translateY(-50%);
-  opacity:.7;
+  opacity:.75;
 }
 
 .sheet input {
   width:100%;
-  padding:.9rem .9rem .9rem 2.4rem;
-  border-radius:14px;
+  padding:1rem 1rem 1rem 2.6rem;
+  border-radius:16px;
   border:none;
   outline:none;
-  background:#12152a;
+  background:var(--panel);
   color:var(--text);
+  font-size:.95rem;
 }
 
 /* ===== AUTOCOMPLETE ===== */
 .autocomplete {
-  background:#12152a;
-  border-radius:12px;
+  background:var(--panel);
+  border-radius:14px;
   overflow:hidden;
   box-shadow:var(--shadow);
-  margin-bottom:.5rem;
+  margin-bottom:.6rem;
 }
 
 .autocomplete div {
-  padding:.7rem;
+  padding:.75rem;
   cursor:pointer;
   transition:background .15s ease;
 }
 
 .autocomplete div:hover {
-  background:rgba(255,255,255,.1);
+  background:rgba(255,255,255,.08);
 }
 
-/* ===== RIDE SUMMARY CARD (🔥 FIX) ===== */
+/* ===== RIDE SUMMARY ===== */
 .ride-summary {
-  margin:.6rem 0;
-  padding:.9rem;
-  background:#12152a;
-  border-radius:16px;
+  margin:.8rem 0;
+  padding:1rem;
+  background:var(--panel);
+  border-radius:18px;
   box-shadow:var(--shadow);
-  text-align:center;
   animation:fadeUp .35s ease;
 }
 
@@ -128,28 +134,87 @@ html,body {
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin:.25rem 0;
+  margin:.35rem 0;
 }
 
-.ride-summary .label {
+.label {
   color:var(--muted);
   font-size:.8rem;
 }
 
-.ride-summary .value {
+.value {
   font-weight:700;
   font-size:1rem;
 }
 
+/* ===== DRIVER CARD ===== */
+.driver-card {
+  margin-top:.8rem;
+  padding:1rem;
+  background:linear-gradient(135deg,#1b2040,#12152a);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+}
+
+.driver-main {
+  display:flex;
+  align-items:center;
+  gap:.8rem;
+}
+
+.avatar {
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.12);
+  font-size:1.2rem;
+}
+
+.driver-name {
+  font-weight:800;
+}
+
+.driver-meta {
+  font-size:.8rem;
+  color:var(--muted);
+}
+
+.driver-plate {
+  font-size:.75rem;
+  margin-top:.2rem;
+  opacity:.85;
+}
+
+.call-btn {
+  display:block;
+  margin-top:.6rem;
+  text-align:center;
+  padding:.6rem;
+  border-radius:14px;
+  background:var(--success);
+  color:#06240f;
+  font-weight:800;
+  text-decoration:none;
+}
+
 /* ===== BUTTONS ===== */
+.actions {
+  position:sticky;
+  bottom:0;
+  padding-top:.5rem;
+}
+
 .btn {
   width:100%;
   padding:1rem;
-  border-radius:16px;
+  border-radius:18px;
   border:none;
-  font-weight:700;
+  font-weight:800;
   cursor:pointer;
-  transition:transform .15s ease, box-shadow .15s ease;
+  transition:transform .15s ease, opacity .15s ease;
 }
 
 .btn:active { transform:scale(.97); }
@@ -161,6 +226,12 @@ html,body {
 
 .secondary {
   background:#1f243f;
+  color:#fff;
+  margin-top:.4rem;
+}
+
+.danger {
+  background:var(--danger);
   color:#fff;
   margin-top:.4rem;
 }
@@ -181,24 +252,17 @@ html,body {
 }
 
 .payment-card {
-  background:#12152a;
+  background:var(--panel);
   padding:1.6rem;
-  border-radius:22px;
+  border-radius:24px;
   width:90%;
   max-width:360px;
   text-align:center;
   box-shadow:var(--shadow);
 }
 
-.driver-plate {
-  font-size: .8rem;
-  opacity: .85;
-  margin-top: .15rem;
-}
-
 /* ===== SMALL DEVICES ===== */
 @media(max-width:380px){
-  .btn { padding:.9rem; }
   .sheet { padding:.85rem; }
 }
 </style>
@@ -206,121 +270,97 @@ html,body {
 
 <body>
 
-  <header class="topbar">🚕 Request a Ride</header>
-  
-  <!-- MAP -->
-  <div id="map"></div>
-  
-  <!-- =========================
-       BOTTOM SHEET
-  ========================= -->
-  <div class="sheet">
-  
-    <!-- PICKUP -->
-    <div class="input-group">
-      <span>📍</span>
-      <input id="pickup" placeholder="Pickup location" autocomplete="off" />
-    </div>
-    <div id="pickupResults" class="autocomplete"></div>
-  
-    <!-- DROPOFF -->
-    <div class="input-group">
-      <span>🏁</span>
-      <input id="dropoff" placeholder="Drop-off location" autocomplete="off" />
-    </div>
-    <div id="dropoffResults" class="autocomplete"></div>
-  
-    <!-- =========================
-         RIDE SUMMARY (VISIBLE + SAFE)
-    ========================= -->
-    <div id="rideInfo" class="ride-summary" style="display:none">
-  
-      <div class="row">
-        <div class="label">Distance</div>
-        <div class="value" id="distanceText">–</div>
-      </div>
-  
-      <div class="row">
-        <div class="label">Estimated Fare</div>
-        <div class="value" id="fareText">–</div>
-      </div>
-  
-      <!-- DRIVER ETA -->
-      <div class="row" id="driverRow" style="display:none">
-        <div class="label">Driver ETA</div>
-        <div class="value" id="driverEtaText">–</div>
-      </div>
-  
-      <!-- SURGE -->
-      <div class="row" id="surgeRow" style="display:none">
-        <div class="label">Pricing</div>
-        <div class="value" id="surgeText">🔥 Surge</div>
-      </div>
+<header class="topbar">🚕 Shamor Rides</header>
 
-      <div id="countdownBar" class="eta hidden">
-        <div id="countdownFill" class="eta-fill"></div>
-      </div>
-      
-      <div id="driverCard" class="driver-card hidden">
-        <div class="driver-main">
-          <div class="avatar">🚗</div>
-      
-          <div>
-            <div id="driverName" class="driver-name">Driver</div>
-      
-            <div class="driver-meta">
-              ⭐ <span id="driverRating">4.8</span> ·
-              <span id="driverVehicle">Toyota Corolla</span>
-            </div>
-      
-            <div class="driver-plate">
-              Plate: <strong id="driverPlate">—</strong>
-            </div>
+<div id="map"></div>
+
+<div class="sheet">
+
+  <!-- LOCATIONS -->
+  <div class="input-group">
+    <span>📍</span>
+    <input id="pickup" placeholder="Pickup location" autocomplete="off" />
+  </div>
+  <div id="pickupResults" class="autocomplete"></div>
+
+  <div class="input-group">
+    <span>🏁</span>
+    <input id="dropoff" placeholder="Drop-off location" autocomplete="off" />
+  </div>
+  <div id="dropoffResults" class="autocomplete"></div>
+
+  <!-- SUMMARY -->
+  <div id="rideInfo" class="ride-summary" style="display:none">
+
+    <div class="row">
+      <div class="label">Distance</div>
+      <div class="value" id="distanceText">–</div>
+    </div>
+
+    <div class="row">
+      <div class="label">Estimated Fare</div>
+      <div class="value" id="fareText">–</div>
+    </div>
+
+    <div class="row" id="driverRow" style="display:none">
+      <div class="label">Driver ETA</div>
+      <div class="value" id="driverEtaText">–</div>
+    </div>
+
+    <!-- DRIVER -->
+    <div id="driverCard" class="driver-card hidden">
+      <div class="driver-main">
+        <div class="avatar">🚗</div>
+        <div>
+          <div id="driverName" class="driver-name">Driver</div>
+          <div class="driver-meta">
+            ⭐ <span id="driverRating">4.8</span> ·
+            <span id="driverVehicle">Toyota Corolla</span>
+          </div>
+          <div class="driver-plate">
+            Plate: <strong id="driverPlate">—</strong>
           </div>
         </div>
-      
-        <a id="driverCallBtn" class="call-btn">📞 Call Driver</a>
       </div>
-      
-      
+      <a id="driverCallBtn" class="call-btn">📞 Call Driver</a>
     </div>
-  
-    <!-- ACTIONS -->
+
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
     <button id="confirmBtn" class="btn primary" disabled>
-      Confirm & Pay
+      Confirm Ride
     </button>
-  
+
     <button id="resetBtn" class="btn secondary">
       Reset
     </button>
-  
   </div>
-  
-  <!-- =========================
-       PAYMENT MODAL
-  ========================= -->
-  <div id="paymentModal">
-    <div class="payment-card">
-      <h3>🚕 Ride Payment</h3>
-      <p id="paySummary">Fare: ₵0.00</p>
-  
-      <button id="payBtn" class="btn primary">
-        Pay with Paystack
-      </button>
-  
-      <button onclick="closePayment()" class="btn secondary">
-        Cancel
-      </button>
-    </div>
+
+</div>
+
+<!-- PAYMENT -->
+<div id="paymentModal">
+  <div class="payment-card">
+    <h3>🚕 Ride Payment</h3>
+    <p id="paySummary">Fare: ₵0.00</p>
+
+    <button id="payBtn" class="btn primary">
+      Pay with MoMo / Card
+    </button>
+
+    <button onclick="closePayment()" class="btn secondary">
+      Cancel
+    </button>
   </div>
-  
-  <!-- SCRIPTS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://js.paystack.co/v1/inline.js"></script>
-  
-  <script type="module" src="/js/payment.js"></script>
-  <script type="module" src="/js/rider.js"></script>
-  
-  </body>
-  </html>
-  
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script type="module" src="/js/payment.js"></script>
+<script type="module" src="/js/rider.js"></script>
+
+</body>
+</html>
