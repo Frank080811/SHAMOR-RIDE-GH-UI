@@ -10,6 +10,7 @@ const UI_STATE = {
   IDLE: "idle",
   SEARCHING: "searching",
   PREVIEW: "preview",
+  REQUESTED: "requested",
   ASSIGNED: "assigned"
 };
 
@@ -20,7 +21,6 @@ let uiState = UI_STATE.IDLE;
 ========================= */
 let map, pickupMarker, dropoffMarker;
 let assignedDriverMarker = null;
-let routeLine = null;
 
 let selectedPickup = null;
 let selectedDropoff = null;
@@ -91,6 +91,7 @@ function showToast(msg) {
 function startSearchingAnimation() {
   stopSearchingAnimation();
   uiState = UI_STATE.SEARCHING;
+
   let dots = "";
   driverRow.style.display = "flex";
   driverEtaText.innerText = "Searching";
@@ -136,8 +137,10 @@ function setPickup(loc) {
   selectedPickup = loc;
   pickupInput.value = loc.name;
   pickupResults.innerHTML = "";
+
   pickupMarker && map.removeLayer(pickupMarker);
   pickupMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
+
   tryPrepareRide();
 }
 
@@ -145,8 +148,10 @@ function setDropoff(loc) {
   selectedDropoff = loc;
   dropoffInput.value = loc.name;
   dropoffResults.innerHTML = "";
+
   dropoffMarker && map.removeLayer(dropoffMarker);
   dropoffMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
+
   tryPrepareRide();
 }
 
@@ -178,18 +183,20 @@ async function tryPrepareRide() {
 }
 
 /* =========================
-   DRIVER PREVIEW (REAL + SIM)
+   DRIVER PREVIEW (SAFE)
 ========================= */
 function startDriverScan() {
-  if (assignedDriver) return;
+  if (uiState === UI_STATE.REQUESTED || uiState === UI_STATE.ASSIGNED) return;
+
   clearInterval(pickupScanInterval);
   startSearchingAnimation();
+
   pickupScanInterval = setInterval(loadDriversForPreview, 15000);
   loadDriversForPreview();
 }
 
 async function loadDriversForPreview() {
-  if (!selectedPickup || assignedDriver) return;
+  if (!selectedPickup || uiState !== UI_STATE.SEARCHING) return;
 
   let drivers = [];
   try {
@@ -204,11 +211,14 @@ async function loadDriversForPreview() {
   previewDriver = drivers
     .map(d => ({
       ...d,
-      score: 1 - haversine(
-        d.lat, d.lng,
-        selectedPickup.latitude,
-        selectedPickup.longitude
-      ) / 6
+      score:
+        1 -
+        haversine(
+          d.lat,
+          d.lng,
+          selectedPickup.latitude,
+          selectedPickup.longitude
+        ) / 6
     }))
     .sort((a, b) => b.score - a.score)[0];
 
@@ -225,8 +235,13 @@ async function loadDriversForPreview() {
    CONFIRM RIDE
 ========================= */
 confirmBtn.onclick = async () => {
+  if (!selectedPickup || !selectedDropoff) return;
+
+  uiState = UI_STATE.REQUESTED;
+  clearInterval(pickupScanInterval);
+
   confirmBtn.disabled = true;
-  showToast("🔍 Requesting driver...");
+  showToast("🚕 Sending ride request...");
 
   const res = await fetch(`${API_BASE}/rides/request`, {
     method: "POST",
@@ -254,14 +269,14 @@ function showDriverCard(driver) {
 
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
-  driverVehicle.innerText =
-    uiState === UI_STATE.ASSIGNED
-      ? driver.vehicle
-      : "Assigned after confirmation";
-  driverPlate.innerText =
-    uiState === UI_STATE.ASSIGNED
-      ? driver.plate
-      : "—";
+
+  if (uiState === UI_STATE.ASSIGNED) {
+    driverVehicle.innerText = driver.vehicle ?? "Vehicle";
+    driverPlate.innerText = driver.plate ?? "—";
+  } else {
+    driverVehicle.innerText = "Confirm ride to assign";
+    driverPlate.innerText = "—";
+  }
 
   driverCard.classList.remove("hidden");
 }
@@ -282,7 +297,7 @@ function updateDriverPosition(lat, lng) {
 }
 
 /* =========================
-   WEBSOCKET
+   WEBSOCKET (RIDER)
 ========================= */
 if (token) {
   const ws = new WebSocket(`${WS_BASE}/tracking/ws/rider?token=${token}`);
@@ -293,7 +308,6 @@ if (token) {
     if (msg.type === "ride.accepted") {
       uiState = UI_STATE.ASSIGNED;
       assignedDriver = msg.driver;
-      clearInterval(pickupScanInterval);
 
       showToast("🚗 Driver accepted your ride");
       showDriverCard(assignedDriver);
@@ -316,7 +330,7 @@ if (token) {
 }
 
 /* =========================
-   DRIVER SIMULATION
+   DRIVER SIMULATION (DEV)
 ========================= */
 function simulateDrivers(pickup) {
   return Array.from({ length: 3 }).map((_, i) => ({
