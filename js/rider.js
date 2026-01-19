@@ -32,7 +32,6 @@ let previewDriver = null;
 let assignedDriver = null;
 let activeRideId = null;
 let pickupScanInterval = null;
-let searchingAnimInterval = null;
 
 /* =========================
    DOM
@@ -75,8 +74,10 @@ function showToast(msg) {
 ========================= */
 async function searchLocations(query, container, onSelect) {
   if (query.length < 2) return;
+
   const res = await fetch(`${API_BASE}/locations/search?q=${query}`);
   const data = await res.json();
+
   container.innerHTML = "";
   data.forEach(loc => {
     const div = document.createElement("div");
@@ -99,8 +100,10 @@ function setPickup(loc) {
   selectedPickup = loc;
   pickupInput.value = loc.name;
   pickupResults.innerHTML = "";
+
   pickupMarker && map.removeLayer(pickupMarker);
   pickupMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
+
   tryPrepareRide();
 }
 
@@ -108,8 +111,10 @@ function setDropoff(loc) {
   selectedDropoff = loc;
   dropoffInput.value = loc.name;
   dropoffResults.innerHTML = "";
+
   dropoffMarker && map.removeLayer(dropoffMarker);
   dropoffMarker = L.marker([loc.latitude, loc.longitude]).addTo(map);
+
   tryPrepareRide();
 }
 
@@ -133,6 +138,7 @@ async function tryPrepareRide() {
 
   distanceText.innerText = `${distanceKm.toFixed(2)} km`;
   fareText.innerText = `₵${fare.toFixed(2)}`;
+
   rideInfo.style.display = "block";
   confirmBtn.disabled = false;
 
@@ -144,9 +150,10 @@ async function tryPrepareRide() {
 ========================= */
 function startDriverScan() {
   if (uiState === UI_STATE.REQUESTED || uiState === UI_STATE.ASSIGNED) return;
-  uiState = UI_STATE.SEARCHING;
 
+  uiState = UI_STATE.SEARCHING;
   clearInterval(pickupScanInterval);
+
   pickupScanInterval = setInterval(loadDriversForPreview, 15000);
   loadDriversForPreview();
 }
@@ -155,8 +162,9 @@ async function loadDriversForPreview() {
   if (!selectedPickup || uiState !== UI_STATE.SEARCHING) return;
 
   const res = await fetch(`${API_BASE}/tracking/drivers/live`);
-  const drivers = res.ok ? await res.json() : [];
+  if (!res.ok) return;
 
+  const drivers = await res.json();
   if (!drivers.length) return;
 
   previewDriver = drivers[0];
@@ -165,7 +173,7 @@ async function loadDriversForPreview() {
 }
 
 /* =========================
-   CONFIRM RIDE ✅ FIXED
+   CONFIRM RIDE
 ========================= */
 confirmBtn.onclick = async () => {
   if (!selectedPickup || !selectedDropoff) return;
