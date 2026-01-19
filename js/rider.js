@@ -72,8 +72,8 @@ function haversine(lat1, lng1, lat2, lng2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2;
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -163,8 +163,8 @@ async function tryPrepareRide() {
 
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
-    `${selectedPickup.longitude},${selectedPickup.latitude};` +
-    `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
+      `${selectedPickup.longitude},${selectedPickup.latitude};` +
+      `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
   );
 
   const data = await res.json();
@@ -183,7 +183,7 @@ async function tryPrepareRide() {
 }
 
 /* =========================
-   DRIVER PREVIEW (SAFE)
+   DRIVER PREVIEW
 ========================= */
 function startDriverScan() {
   if (uiState === UI_STATE.REQUESTED || uiState === UI_STATE.ASSIGNED) return;
@@ -235,12 +235,12 @@ async function loadDriversForPreview() {
    CONFIRM RIDE
 ========================= */
 confirmBtn.onclick = async () => {
-  if (!selectedPickup || !selectedDropoff) return;
+  if (!selectedPickup || !selectedDropoff || !previewDriver) return;
 
   uiState = UI_STATE.REQUESTED;
   clearInterval(pickupScanInterval);
-
   confirmBtn.disabled = true;
+
   showToast("🚕 Sending ride request...");
 
   const res = await fetch(`${API_BASE}/rides/request`, {
@@ -253,7 +253,8 @@ confirmBtn.onclick = async () => {
       pickup_lat: selectedPickup.latitude,
       pickup_lng: selectedPickup.longitude,
       dropoff_lat: selectedDropoff.latitude,
-      dropoff_lng: selectedDropoff.longitude
+      dropoff_lng: selectedDropoff.longitude,
+      preferred_driver_id: previewDriver.driver_id // 🔒 KEY FIX
     })
   });
 
@@ -265,8 +266,6 @@ confirmBtn.onclick = async () => {
    DRIVER CARD
 ========================= */
 function showDriverCard(driver) {
-  if (!driver) return;
-
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
 
@@ -274,7 +273,7 @@ function showDriverCard(driver) {
     driverVehicle.innerText = driver.vehicle ?? "Vehicle";
     driverPlate.innerText = driver.plate ?? "—";
   } else {
-    driverVehicle.innerText = "Confirm ride to assign";
+    driverVehicle.innerText = "Will be shown after acceptance";
     driverPlate.innerText = "—";
   }
 
