@@ -16,7 +16,7 @@ export function payWithPaystack({ amount, email, onSuccess }) {
   PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
     email,
-    amount: Math.round(amount * 100), // Paystack expects kobo
+    amount: Math.round(amount * 100),
     currency: "GHS",
 
     callback(response) {
