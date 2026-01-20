@@ -28,6 +28,7 @@ let map, marker;
 let currentRide = null;
 let ws = null;
 let reconnectTimer = null;
+let heartbeatTimer = null;
 
 /* =========================
    MAP INIT
@@ -36,51 +37,55 @@ map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
-   DRIVER WEBSOCKET ✅ CORRECTED
+   DRIVER WEBSOCKET (FINAL)
 ========================= */
 function connectWS() {
   if (ws) ws.close();
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
 
   ws = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
 
   ws.onopen = () => {
     console.log("✅ Driver WebSocket connected");
     driverStatus.innerText = "📡 Online — waiting for rides";
+
+    // 🔁 Start heartbeat ONLY after connection opens
+    heartbeatTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send("ping");
+      }
+    }, 20000);
   };
 
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
+    console.log("📩 WS message:", msg);
 
-    // 🔥 Ignore keepalive pings
-    if (msg.type === "ping") return;
+    if (msg.type !== "ride.requested") return;
+    if (currentRide) return;
 
-    // 🚕 Ride request
-    if (msg.type === "ride.requested") {
-      if (currentRide) return;
+    currentRide = {
+      ride_id: msg.ride_id,
+      pickup_lat: msg.pickup_lat,
+      pickup_lng: msg.pickup_lng,
+      dropoff_lat: msg.dropoff_lat,
+      dropoff_lng: msg.dropoff_lng,
+      fare: msg.fare
+    };
 
-      currentRide = {
-        ride_id: msg.ride_id,
-        pickup_lat: msg.pickup_lat,
-        pickup_lng: msg.pickup_lng,
-        dropoff_lat: msg.dropoff_lat,
-        dropoff_lng: msg.dropoff_lng,
-        fare: msg.fare
-      };
-
-      showRide(currentRide);
-    }
+    showRide(currentRide);
   };
 
   ws.onclose = () => {
     console.warn("⚠️ Driver WS closed — reconnecting");
     driverStatus.innerText = "⚠️ Reconnecting…";
 
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
     reconnectTimer = setTimeout(connectWS, 3000);
   };
 
-  ws.onerror = () => {
-    ws.close();
-  };
+  ws.onerror = () => ws.close();
 }
 
 connectWS();
