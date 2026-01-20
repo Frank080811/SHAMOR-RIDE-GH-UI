@@ -25,12 +25,6 @@ function getValidDriverToken() {
   }
 }
 
-let token = getValidDriverToken();
-if (!token) {
-  alert("Driver login required");
-  location.href = "/login.html";
-}
-
 /* =========================
    DOM
 ========================= */
@@ -72,7 +66,7 @@ function connectWS() {
   token = getValidDriverToken();
   if (!token) {
     alert("Driver session expired");
-    location.href = "/login.html";
+    location.href = "index.html";
     return;
   }
 

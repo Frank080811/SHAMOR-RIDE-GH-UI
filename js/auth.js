@@ -3,7 +3,7 @@
 ========================= */
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded — v5 (final)");
+console.log("auth.js loaded — v6 (fixed)");
 
 // =========================
 // HELPERS
@@ -48,19 +48,19 @@ window.togglePassword = (id) => {
 };
 
 window.showLogin = () => {
-  get("tabs").classList.remove("signup");
-  get("loginForm").classList.add("active");
-  get("signupForm").classList.remove("active");
+  get("tabs")?.classList.remove("signup");
+  get("loginForm")?.classList.add("active");
+  get("signupForm")?.classList.remove("active");
 };
 
 window.showSignup = () => {
-  get("tabs").classList.add("signup");
-  get("signupForm").classList.add("active");
-  get("loginForm").classList.remove("active");
+  get("tabs")?.classList.add("signup");
+  get("signupForm")?.classList.add("active");
+  get("loginForm")?.classList.remove("active");
 };
 
 // =========================
-// LOGIN (CORRECT)
+// LOGIN (FIXED)
 // =========================
 window.login = async () => {
   const identifier = get("loginIdentifier")?.value.trim();
@@ -71,10 +71,13 @@ window.login = async () => {
     return;
   }
 
+  // 🔒 Clear any stale session before login
   clearAllAuth();
 
-  const payload = { password };
-  payload.email = identifier; // backend accepts email/phone already
+  const payload = {
+    email: identifier, // backend supports email/phone
+    password,
+  };
 
   let res;
   try {
@@ -105,22 +108,37 @@ window.login = async () => {
   }
 
   // =========================
-  // ROLE-ISOLATED STORAGE
+  // ROLE-ISOLATED STORAGE + REDIRECT
   // =========================
+
   if (role === "driver") {
     localStorage.setItem("driver_token", token);
 
-    const statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    let statusRes;
+    try {
+      statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      alert("Unable to verify driver status");
+      return;
+    }
+
+    if (!statusRes.ok) {
+      alert("Driver status check failed");
+      console.error(await statusRes.text());
+      return;
+    }
 
     const statusData = await safeJson(statusRes);
     const status = statusData?.status;
 
     if (status === "approved") location.href = "driver.html";
-    else if (status === "pending") location.href = "driver-pending.html";
+    else if (status === "pending" || status === "approved_pending_activation")
+      location.href = "driver-pending.html";
     else if (status === "rejected") location.href = "driver-rejected.html";
     else location.href = "driver-onboarding.html";
+
     return;
   }
 
@@ -148,7 +166,7 @@ window.signup = async () => {
   const password = get("passwordInput")?.value;
   const role = get("roleSelect")?.value;
 
-  if (!email || !full_name || !password) {
+  if (!email || !full_name || !password || !role) {
     alert("All fields required");
     return;
   }

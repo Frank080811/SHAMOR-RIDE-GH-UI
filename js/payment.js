@@ -53,7 +53,7 @@ export async function createRide({
 
   if (!token) {
     alert("Rider login required");
-    location.href = "/login.html";
+    location.href = "index.html";
     return;
   }
 
