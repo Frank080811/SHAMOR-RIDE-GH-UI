@@ -1,9 +1,9 @@
 /* =========================
-   auth.js (FINAL — ROLE SAFE + BACKWARD COMPATIBLE)
+   auth.js (FINAL — STABLE & ROLE SAFE)
 ========================= */
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded — v4 (stable)");
+console.log("auth.js loaded — v5 (final)");
 
 // =========================
 // HELPERS
@@ -31,10 +31,9 @@ async function safeJson(res) {
 }
 
 // =========================
-// CLEAN SESSION
+// CLEAN SESSION (CRITICAL)
 // =========================
 function clearAllAuth() {
-  localStorage.removeItem("access_token"); // ⚠️ kept for backend compatibility
   localStorage.removeItem("driver_token");
   localStorage.removeItem("rider_token");
   localStorage.removeItem("admin_token");
@@ -61,25 +60,28 @@ window.showSignup = () => {
 };
 
 // =========================
-// LOGIN (FIXED)
+// LOGIN (CORRECT)
 // =========================
 window.login = async () => {
-  const email = get("loginEmail").value.trim();
-  const password = get("loginPassword").value;
+  const identifier = get("loginIdentifier")?.value.trim();
+  const password = get("loginPassword")?.value;
 
-  if (!email || !password) {
-    alert("Email and password required");
+  if (!identifier || !password) {
+    alert("Email/Phone and password required");
     return;
   }
 
   clearAllAuth();
+
+  const payload = { password };
+  payload.email = identifier; // backend accepts email/phone already
 
   let res;
   try {
     res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(payload),
     });
   } catch {
     alert("Network error");
@@ -94,16 +96,13 @@ window.login = async () => {
   }
 
   const token = data.access_token;
-  const payload = parseJwt(token);
-  const role = payload?.role;
+  const payloadJwt = parseJwt(token);
+  const role = payloadJwt?.role;
 
   if (!role) {
-    alert("Invalid token received");
+    alert("Invalid login token");
     return;
   }
-
-  // 🔥 BACKWARD COMPATIBILITY TOKEN
-  localStorage.setItem("access_token", token);
 
   // =========================
   // ROLE-ISOLATED STORAGE
@@ -144,10 +143,10 @@ window.login = async () => {
 // SIGNUP
 // =========================
 window.signup = async () => {
-  const email = get("emailInput").value.trim();
-  const full_name = get("full_nameInput").value.trim();
-  const password = get("passwordInput").value;
-  const role = get("roleSelect").value;
+  const email = get("emailInput")?.value.trim();
+  const full_name = get("full_nameInput")?.value.trim();
+  const password = get("passwordInput")?.value;
+  const role = get("roleSelect")?.value;
 
   if (!email || !full_name || !password) {
     alert("All fields required");
