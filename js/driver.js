@@ -62,7 +62,7 @@ map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
-   DRIVER WEBSOCKET
+   DRIVER WEBSOCKET (FIXED)
 ========================= */
 function connectWS() {
   if (ws) ws.close();
@@ -84,9 +84,10 @@ function connectWS() {
     console.log("✅ Driver WebSocket connected");
     driverStatus.innerText = "📡 Online — waiting for rides";
 
+    // ✅ JSON heartbeat (CRITICAL FIX)
     heartbeatTimer = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send("ping");
+        ws.send(JSON.stringify({ type: "ping" }));
       }
     }, 20000);
   };
@@ -99,7 +100,7 @@ function connectWS() {
       return;
     }
 
-    console.log("📩 WS message:", msg);
+    console.log("📩 Driver WS:", msg);
 
     if (msg.type !== "ride.requested") return;
     if (currentRide) return;
@@ -178,7 +179,7 @@ function showRide(ride) {
 }
 
 /* =========================
-   ACCEPT / START / END RIDE
+   ACCEPT / START / END
 ========================= */
 acceptBtn.onclick = async () => {
   if (!currentRide) return;

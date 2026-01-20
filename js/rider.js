@@ -17,12 +17,10 @@ if (!token) {
   location.href = "/login.html";
 }
 
-// 🔒 HARD ROLE CHECK (CRITICAL)
+// 🔒 HARD ROLE CHECK
 try {
   const payload = JSON.parse(atob(token.split(".")[1]));
-  if (payload.role !== "rider") {
-    throw new Error("Invalid role");
-  }
+  if (payload.role !== "rider") throw new Error("Invalid role");
 } catch {
   localStorage.removeItem("rider_token");
   alert("Invalid rider session");
@@ -35,7 +33,6 @@ try {
 const UI_STATE = {
   IDLE: "idle",
   SEARCHING: "searching",
-  PREVIEW: "preview",
   REQUESTED: "requested",
   ASSIGNED: "assigned"
 };
@@ -48,7 +45,6 @@ let uiState = UI_STATE.IDLE;
 let map, pickupMarker, dropoffMarker, assignedDriverMarker;
 let selectedPickup = null;
 let selectedDropoff = null;
-let previewDriver = null;
 let assignedDriver = null;
 let activeRideId = null;
 let pickupScanInterval = null;
@@ -64,7 +60,6 @@ const confirmBtn = document.getElementById("confirmBtn");
 const rideInfo = document.getElementById("rideInfo");
 const distanceText = document.getElementById("distanceText");
 const fareText = document.getElementById("fareText");
-const driverRow = document.getElementById("driverRow");
 const driverEtaText = document.getElementById("driverEtaText");
 const driverCard = document.getElementById("driverCard");
 const driverName = document.getElementById("driverName");
@@ -79,7 +74,7 @@ map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
-   HELPERS
+   TOAST
 ========================= */
 function showToast(msg) {
   const t = document.createElement("div");
@@ -141,7 +136,7 @@ function setDropoff(loc) {
 }
 
 /* =========================
-   ROUTE + FARE (UI ONLY)
+   ROUTE + FARE
 ========================= */
 async function tryPrepareRide() {
   if (!selectedPickup || !selectedDropoff) return;
@@ -163,46 +158,16 @@ async function tryPrepareRide() {
 
   rideInfo.style.display = "block";
   confirmBtn.disabled = false;
-
-  startDriverScan();
 }
 
 /* =========================
-   DRIVER PREVIEW (VISUAL ONLY)
-========================= */
-function startDriverScan() {
-  if (uiState === UI_STATE.REQUESTED || uiState === UI_STATE.ASSIGNED) return;
-
-  uiState = UI_STATE.SEARCHING;
-  clearInterval(pickupScanInterval);
-
-  pickupScanInterval = setInterval(loadDriversForPreview, 15000);
-  loadDriversForPreview();
-}
-
-async function loadDriversForPreview() {
-  if (!selectedPickup || uiState !== UI_STATE.SEARCHING) return;
-
-  const res = await fetch(`${API_BASE}/tracking/drivers/live`);
-  if (!res.ok) return;
-
-  const drivers = await res.json();
-  if (!drivers.length) return;
-
-  previewDriver = drivers[0];
-  driverEtaText.innerText = `${previewDriver.eta ?? "—"} min`;
-  showDriverCard(previewDriver);
-}
-
-/* =========================
-   CONFIRM RIDE
+   REQUEST RIDE
 ========================= */
 confirmBtn.onclick = async () => {
   if (!selectedPickup || !selectedDropoff) return;
 
   uiState = UI_STATE.REQUESTED;
   confirmBtn.disabled = true;
-  clearInterval(pickupScanInterval);
 
   showToast("🚕 Searching for drivers...");
 
@@ -227,21 +192,21 @@ confirmBtn.onclick = async () => {
 function showDriverCard(driver) {
   driverName.innerText = driver.name ?? "Driver";
   driverRating.innerText = driver.rating ?? "4.8";
-  driverVehicle.innerText = "Assigned after acceptance";
-  driverPlate.innerText = "—";
+  driverVehicle.innerText = driver.vehicle ?? "—";
+  driverPlate.innerText = driver.plate ?? "—";
   driverCard.classList.remove("hidden");
 }
 
 /* =========================
-   WEBSOCKET (RIDER)
+   WEBSOCKET (RIDER — FIXED)
 ========================= */
 const ws = new WebSocket(
-  `${WS_BASE}/tracking/ws/driver?token=${getDriverToken()}`
+  `${WS_BASE}/tracking/ws/rider?token=${token}`
 );
-
 
 ws.onmessage = e => {
   const msg = JSON.parse(e.data);
+  console.log("📩 Rider WS:", msg);
 
   if (msg.type === "ride.accepted") {
     uiState = UI_STATE.ASSIGNED;

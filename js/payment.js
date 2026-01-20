@@ -1,7 +1,15 @@
-// js/payment.js
+// js/payment.js (RIDER SAFE)
 
-import { API_BASE_URL, PAYSTACK_PUBLIC_KEY, auth } from "./config.js";
+import {
+  API_BASE_URL,
+  PAYSTACK_PUBLIC_KEY,
+  getRiderToken,
+  authRider
+} from "./config.js";
 
+/* =========================
+   PAYSTACK
+========================= */
 export function payWithPaystack({ amount, email, onSuccess }) {
   if (!window.PaystackPop) {
     alert("Payment system not loaded");
@@ -16,7 +24,7 @@ export function payWithPaystack({ amount, email, onSuccess }) {
   PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
     email,
-    amount: Math.round(amount * 100),
+    amount: Math.round(amount * 100), // kobo
     currency: "GHS",
 
     callback(response) {
@@ -30,11 +38,29 @@ export function payWithPaystack({ amount, email, onSuccess }) {
   }).openIframe();
 }
 
-export async function createRide(paymentRef) {
+/* =========================
+   CREATE RIDE (RIDER ONLY)
+========================= */
+export async function createRide({
+  pickupCoords,
+  dropoffCoords,
+  fare,
+  paymentRef,
+  confirmBtn,
+  startDriverTracking
+}) {
+  const token = getRiderToken();
+
+  if (!token) {
+    alert("Rider login required");
+    location.href = "/login.html";
+    return;
+  }
+
   try {
     const res = await fetch(`${API_BASE_URL}/rides/request`, {
       method: "POST",
-      headers: auth(),
+      headers: authRider(),
       body: JSON.stringify({
         pickup_lat: pickupCoords.lat,
         pickup_lng: pickupCoords.lng,
@@ -48,17 +74,17 @@ export async function createRide(paymentRef) {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.detail || "Ride creation failed");
-      confirmBtn.disabled = false;
+      alert(data?.detail || "Ride creation failed");
+      confirmBtn && (confirmBtn.disabled = false);
       return;
     }
 
     alert("🚕 Ride requested successfully!");
-    startDriverTracking(data.id);
+    startDriverTracking?.(data.ride_id);
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ Ride request error:", err);
     alert("Backend not reachable");
-    confirmBtn.disabled = false;
+    confirmBtn && (confirmBtn.disabled = false);
   }
 }

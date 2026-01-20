@@ -1,23 +1,65 @@
-// js/push.js (or wherever this lives)
+// js/push.js (ROLE SAFE)
 
 import { getMessaging, getToken as getFcmToken } from "firebase/messaging";
-import { API_BASE, auth } from "./config.js";
+import {
+  API_BASE,
+  getDriverToken,
+  getRiderToken,
+  getAdminToken
+} from "./config.js";
 
+/* =========================
+   FIREBASE
+========================= */
 const messaging = getMessaging(firebaseApp);
 
+/* =========================
+   RESOLVE ACTIVE TOKEN
+========================= */
+function getAnyAuthHeader() {
+  const token =
+    getDriverToken() ||
+    getRiderToken() ||
+    getAdminToken();
+
+  if (!token) return null;
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+/* =========================
+   REGISTER PUSH TOKEN
+========================= */
 export async function registerPushToken() {
   try {
+    const headers = getAnyAuthHeader();
+    if (!headers) {
+      console.warn("⚠️ Push token skipped — no authenticated user");
+      return;
+    }
+
     const fcmToken = await getFcmToken(messaging, {
-      vapidKey: VAPID_KEY
+      vapidKey: VAPID_KEY,
     });
 
-    if (!fcmToken) return;
+    if (!fcmToken) {
+      console.warn("⚠️ No FCM token received");
+      return;
+    }
 
-    await fetch(`${API_BASE}/users/push-token`, {
+    const res = await fetch(`${API_BASE}/users/push-token`, {
       method: "POST",
-      headers: auth(),
-      body: JSON.stringify({ token: fcmToken })
+      headers,
+      body: JSON.stringify({ token: fcmToken }),
     });
+
+    if (!res.ok) {
+      console.warn("⚠️ Push token rejected");
+      return;
+    }
 
     console.log("✅ Push token registered");
   } catch (err) {
