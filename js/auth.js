@@ -3,23 +3,14 @@
 ========================= */
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded — v7 (production safe)");
+console.log("auth.js loaded — v8 (stable)");
 
 /* =========================
    PAGE CONTEXT GUARD
 ========================= */
-/**
- * auth.js should ONLY be active on index.html
- * On other pages, it must be inert
- */
 const IS_AUTH_PAGE =
-  location.pathname.endsWith("/") ||
+  location.pathname === "/" ||
   location.pathname.endsWith("/index.html");
-
-if (!IS_AUTH_PAGE) {
-  // Do NOT attach auth handlers outside login page
-  console.log("auth.js inactive on this page");
-}
 
 /* =========================
    HELPERS
@@ -90,18 +81,14 @@ if (IS_AUTH_PAGE) {
       return;
     }
 
-    // 🔒 Clear stale session ONLY when user explicitly logs in
-    clearAllAuth();
+    clearAllAuth(); // ONLY here
 
     let res;
     try {
       res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: identifier,
-          password
-        }),
+        body: JSON.stringify({ email: identifier, password }),
       });
     } catch {
       alert("Network error");
@@ -115,4 +102,84 @@ if (IS_AUTH_PAGE) {
       return;
     }
 
-    const token = data.access_token_
+    // ✅ FIXED LINE
+    const token = data.access_token;
+
+    const payload = parseJwt(token);
+    const role = payload?.role;
+
+    if (!role) {
+      alert("Invalid login token");
+      return;
+    }
+
+    if (role === "driver") {
+      localStorage.setItem("driver_token", token);
+
+      const statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const statusData = await safeJson(statusRes);
+      const status = statusData?.status;
+
+      if (status === "approved") location.href = "driver.html";
+      else if (status === "pending" || status === "approved_pending_activation")
+        location.href = "driver-pending.html";
+      else if (status === "rejected") location.href = "driver-rejected.html";
+      else location.href = "driver-onboarding.html";
+
+      return;
+    }
+
+    if (role === "rider") {
+      localStorage.setItem("rider_token", token);
+      location.href = "rider.html";
+      return;
+    }
+
+    if (role === "admin") {
+      localStorage.setItem("admin_token", token);
+      location.href = "admin.html";
+      return;
+    }
+
+    alert("Unknown user role");
+  };
+
+  /* =========================
+     SIGNUP
+  ========================= */
+  window.signup = async () => {
+    const email = get("emailInput")?.value.trim();
+    const full_name = get("full_nameInput")?.value.trim();
+    const password = get("passwordInput")?.value;
+    const role = get("roleSelect")?.value;
+
+    if (!email || !full_name || !password || !role) {
+      alert("All fields required");
+      return;
+    }
+
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, full_name, password, role }),
+      });
+    } catch {
+      alert("Network error");
+      return;
+    }
+
+    const data = await safeJson(res);
+
+    if (!res.ok) {
+      alert(data?.detail || "Signup failed");
+      return;
+    }
+
+    alert("Account created! Check your email to verify.");
+  };
+}
