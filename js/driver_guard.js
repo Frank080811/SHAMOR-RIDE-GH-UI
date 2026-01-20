@@ -1,41 +1,69 @@
 // js/driver_guard.js
-import { API_BASE } from "./config.js";
+import { API_BASE, getDriverToken } from "./config.js";
 
 export async function enforceDriverFlow() {
-  const token = localStorage.getItem("access_token");
-  if (!token) location.href = "auth.html";
+  const token = getDriverToken();
 
-  const res = await fetch(`${API_BASE}/drivers/me/status`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  // 🔒 No driver token → login
+  if (!token) {
+    location.replace("index.html");
+    return;
+  }
+
+  // 🔒 HARD ROLE CHECK
+  let payload;
+  try {
+    payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.role !== "driver") {
+      throw new Error("Not a driver");
+    }
+  } catch {
+    localStorage.removeItem("driver_token");
+    location.replace("index.html");
+    return;
+  }
+
+  // 🔍 Verify driver onboarding status from backend
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/drivers/me/status`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch {
+    location.replace("index.html");
+    return;
+  }
 
   if (!res.ok) {
-    location.href = "auth.html";
+    location.replace("index.html");
     return;
   }
 
   const data = await res.json();
 
+  // 🚦 Enforce correct driver flow
   switch (data.status) {
     case "not_started":
     case "in_progress":
-      location.href = "driver-onboarding.html";
+      location.replace("driver-onboarding.html");
       break;
 
     case "pending":
     case "approved_pending_activation":
-      location.href = "driver-pending.html";
+      location.replace("driver-pending.html");
       break;
 
     case "approved":
-      // allowed
+      // ✅ allowed to stay on driver.html
       break;
 
     case "rejected":
-      location.href = "driver-rejected.html";
+      location.replace("driver-rejected.html");
       break;
 
     default:
-      location.href = "auth.html";
+      location.replace("login.html");
   }
 }
