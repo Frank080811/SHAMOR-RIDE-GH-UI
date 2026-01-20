@@ -1,6 +1,9 @@
+/* =========================
+   auth.js (FINAL — ROLE SAFE + BACKWARD COMPATIBLE)
+========================= */
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded — v3 (role-isolated)");
+console.log("auth.js loaded — v4 (stable)");
 
 // =========================
 // HELPERS
@@ -28,11 +31,10 @@ async function safeJson(res) {
 }
 
 // =========================
-// CLEAN SESSION (CRITICAL)
+// CLEAN SESSION
 // =========================
 function clearAllAuth() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("access_token"); // ⚠️ kept for backend compatibility
   localStorage.removeItem("driver_token");
   localStorage.removeItem("rider_token");
   localStorage.removeItem("admin_token");
@@ -59,7 +61,7 @@ window.showSignup = () => {
 };
 
 // =========================
-// LOGIN (ROLE SAFE)
+// LOGIN (FIXED)
 // =========================
 window.login = async () => {
   const email = get("loginEmail").value.trim();
@@ -70,7 +72,7 @@ window.login = async () => {
     return;
   }
 
-  clearAllAuth(); // 🔥 VERY IMPORTANT
+  clearAllAuth();
 
   let res;
   try {
@@ -91,7 +93,8 @@ window.login = async () => {
     return;
   }
 
-  const payload = parseJwt(data.access_token);
+  const token = data.access_token;
+  const payload = parseJwt(token);
   const role = payload?.role;
 
   if (!role) {
@@ -99,14 +102,17 @@ window.login = async () => {
     return;
   }
 
+  // 🔥 BACKWARD COMPATIBILITY TOKEN
+  localStorage.setItem("access_token", token);
+
   // =========================
-  // STORE ROLE-SPECIFIC TOKEN
+  // ROLE-ISOLATED STORAGE
   // =========================
   if (role === "driver") {
-    localStorage.setItem("driver_token", data.access_token);
+    localStorage.setItem("driver_token", token);
 
     const statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
-      headers: { Authorization: `Bearer ${data.access_token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     const statusData = await safeJson(statusRes);
@@ -120,13 +126,13 @@ window.login = async () => {
   }
 
   if (role === "rider") {
-    localStorage.setItem("rider_token", data.access_token);
+    localStorage.setItem("rider_token", token);
     location.href = "rider.html";
     return;
   }
 
   if (role === "admin") {
-    localStorage.setItem("admin_token", data.access_token);
+    localStorage.setItem("admin_token", token);
     location.href = "admin.html";
     return;
   }

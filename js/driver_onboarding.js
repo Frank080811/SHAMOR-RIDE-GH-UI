@@ -1,4 +1,29 @@
-import { API_BASE_URL } from "./config.js";
+/* ===============================
+   DRIVER ONBOARDING (ROLE SAFE)
+================================ */
+import { API_BASE_URL, getDriverToken } from "./config.js";
+
+/* ===============================
+   TOKEN + ROLE VALIDATION
+================================ */
+function getValidDriverToken() {
+  const t = getDriverToken();
+  if (!t) return null;
+
+  try {
+    const payload = JSON.parse(atob(t.split(".")[1]));
+    if (payload.role !== "driver") throw new Error("Wrong role");
+    return t;
+  } catch {
+    localStorage.removeItem("driver_token");
+    return null;
+  }
+}
+
+const token = getValidDriverToken();
+if (!token) {
+  location.replace("/login.html");
+}
 
 /* ===============================
    STATE
@@ -6,11 +31,6 @@ import { API_BASE_URL } from "./config.js";
 let currentStep = 0;
 const steps = document.querySelectorAll(".step");
 const progressBars = document.querySelectorAll(".progress span");
-const token = localStorage.getItem("access_token");
-
-if (!token) {
-  location.href = "/auth.html";
-}
 
 /* ===============================
    AUTH HEADER
@@ -42,7 +62,6 @@ window.fileStatus = function (input) {
   }
 };
 
-
 /* ===============================
    INIT — RESUME / REDIRECT
 ================================ */
@@ -59,7 +78,7 @@ async function init() {
     const data = await res.json();
 
     if (data.status === "approved") {
-      location.href = "/driver.html";
+      location.replace("/driver.html");
       return;
     }
 
@@ -67,7 +86,7 @@ async function init() {
       data.status === "pending" ||
       data.status === "approved_pending_activation"
     ) {
-      location.href = "/driver-pending.html";
+      location.replace("/driver-pending.html");
       return;
     }
 
@@ -137,7 +156,6 @@ window.prev = function () {
    SUBMIT FULL ONBOARDING
 ================================ */
 async function submitDriver() {
-  /* ---------- VALIDATION ---------- */
   const requiredFields = [
     "phone",
     "address",
@@ -170,7 +188,7 @@ async function submitDriver() {
 
   for (const id of requiredFiles) {
     const input = document.getElementById(id);
-    if (!input || !input.files?.[0]) {
+    if (!input?.files?.[0]) {
       alert(`Please upload ${id.replace(/_/g, " ")}`);
       return;
     }
@@ -178,37 +196,30 @@ async function submitDriver() {
 
   const front = document.getElementById("vehicle_front")?.files?.[0];
   const back = document.getElementById("vehicle_back")?.files?.[0];
-  
+
   if (!front || !back) {
     alert("Please upload both vehicle front and back photos");
     return;
   }
-  
 
-  /* ---------- FORM DATA ---------- */
   const form = new FormData();
 
-  // BASIC
   form.append("phone", getVal("phone"));
   form.append("address", getVal("address"));
 
-  // ID
   form.append("ghana_card_number", getVal("ghana_card"));
   form.append("license_number", getVal("license_number"));
   form.append("license_expiry", getVal("license_expiry"));
 
-  // VEHICLE
   form.append("vehicle_model", getVal("vehicle_model"));
   form.append("vehicle_year", getVal("vehicle_year"));
   form.append("vehicle_type", getVal("vehicle_type"));
   form.append("plate", getVal("plate"));
 
-  // NEXT OF KIN
   form.append("kin_name", getVal("kin_name"));
   form.append("kin_relation", getVal("kin_relation"));
   form.append("kin_phone", getVal("kin_phone"));
 
-  // FILES
   appendFile(form, "ghana_card_file");
   appendFile(form, "license_file");
   appendFile(form, "insurance_file");
@@ -217,9 +228,7 @@ async function submitDriver() {
 
   form.append("vehicle_front", front);
   form.append("vehicle_back", back);
-  
 
-  /* ---------- UPLOAD ---------- */
   await uploadWithProgress(form);
 }
 
@@ -239,7 +248,7 @@ function appendFile(form, inputId, keyOverride = null) {
 }
 
 /* ===============================
-   UPLOAD WITH PROGRESS (XHR)
+   UPLOAD WITH PROGRESS
 ================================ */
 function uploadWithProgress(form) {
   return new Promise((resolve, reject) => {
@@ -272,15 +281,8 @@ function uploadWithProgress(form) {
       if (xhr.status >= 200 && xhr.status < 300) {
         bar.style.width = "100%";
         alert("✅ Application submitted for review");
-        location.href = "/driver-pending.html";
+        location.replace("/driver-pending.html");
         resolve(response);
-      } else if (Array.isArray(response.detail)) {
-        alert(
-          response.detail
-            .map((e) => `${e.loc.at(-1)}: ${e.msg}`)
-            .join("\n")
-        );
-        reject(response);
       } else {
         alert(response.detail || "Upload failed");
         reject(response);
