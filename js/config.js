@@ -4,8 +4,7 @@
 const IS_PROD =
   typeof window !== "undefined" &&
   window.location &&
-  window.location.hostname !== "localhost" &&
-  window.location.hostname !== "127.0.0.1";
+  !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
 /* =========================
    API BASE URLs
@@ -13,8 +12,6 @@ const IS_PROD =
 export const API_BASE = IS_PROD
   ? "https://shamor-ride-gh.onrender.com"
   : "http://localhost:8000";
-
-export const API_BASE_URL = API_BASE;
 
 /* =========================
    WEBSOCKET BASE URL
@@ -24,58 +21,46 @@ export const WS_BASE = IS_PROD
   : "ws://localhost:8000";
 
 /* =========================
-   PAYSTACK CONFIG
+   TOKEN HELPERS (ROLE SAFE)
 ========================= */
-export const PAYSTACK_PUBLIC_KEY =
-  "pk_test_51SfaqWPxKebzwItyyTLjuEPRKjPoIK0KcAwfjkab60b3hOJytCTGyep1JSvqiuA5zivFEXDw8BpWMNEkvZIsbfs800mTLS5m2m";
+export const getDriverToken = () =>
+  localStorage.getItem("driver_token");
+
+export const getRiderToken = () =>
+  localStorage.getItem("rider_token");
+
+export const getAdminToken = () =>
+  localStorage.getItem("admin_token");
 
 /* =========================
-   ENV FLAGS
+   AUTH HEADERS (ROLE SAFE)
 ========================= */
-export const IS_TESTING = !IS_PROD;
+export const authDriver = () => {
+  const t = getDriverToken();
+  return t
+    ? {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${t}`,
+      }
+    : {};
+};
 
-/* ======================================================
-   🔐 AUTH TOKEN HELPERS (ROLE-SAFE)
-   🚫 NO shared access_token anymore
-====================================================== */
+export const authRider = () => {
+  const t = getRiderToken();
+  return t
+    ? {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${t}`,
+      }
+    : {};
+};
 
-/* ---------- DRIVER ---------- */
-export function getDriverToken() {
-  return localStorage.getItem("driver_token");
-}
-
-/* ---------- RIDER ---------- */
-export function getRiderToken() {
-  return localStorage.getItem("rider_token");
-}
-
-/* ---------- REFRESH (OPTIONAL / SHARED) ---------- */
-export function getRefreshToken() {
-  return localStorage.getItem("refresh_token");
-}
-
-/* ======================================================
-   🔑 AUTH HEADERS (ROLE-AWARE)
-====================================================== */
-
-/* ---------- DRIVER HEADERS ---------- */
-export function authDriver(extra = {}) {
-  const token = getDriverToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    "Content-Type": "application/json",
-    ...extra,
-  };
-}
-
-/* ---------- RIDER HEADERS ---------- */
-export function authRider(extra = {}) {
-  const token = getRiderToken();
-
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    "Content-Type": "application/json",
-    ...extra,
-  };
-}
+export const authAdmin = () => {
+  const t = getAdminToken();
+  return t
+    ? {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${t}`,
+      }
+    : {};
+};
