@@ -19,7 +19,6 @@ const endBtn = document.getElementById("endBtn");
 
 const earningsToday = document.getElementById("earningsToday");
 const earningsTotal = document.getElementById("earningsTotal");
-
 const toast = document.getElementById("toast");
 
 /* =========================
@@ -27,7 +26,8 @@ const toast = document.getElementById("toast");
 ========================= */
 let map, marker;
 let currentRide = null;
-let isOnline = true;
+let ws = null;
+let reconnectTimer = null;
 
 /* =========================
    MAP INIT
@@ -36,28 +36,54 @@ map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
-   DRIVER WEBSOCKET ✅ FIXED
+   DRIVER WEBSOCKET ✅ CORRECTED
 ========================= */
-const ws = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
+function connectWS() {
+  if (ws) ws.close();
 
-ws.onopen = () => {
-  console.log("✅ Driver WebSocket connected");
-};
+  ws = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
 
-ws.onmessage = e => {
-  const msg = JSON.parse(e.data);
+  ws.onopen = () => {
+    console.log("✅ Driver WebSocket connected");
+    driverStatus.innerText = "📡 Online — waiting for rides";
+  };
 
-  if (msg.type === "ride.requested") {
-    if (currentRide) return;
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
 
-    currentRide = msg.ride;
-    showRide(currentRide);
-  }
-};
+    // 🔥 Ignore keepalive pings
+    if (msg.type === "ping") return;
 
-ws.onclose = () => {
-  console.warn("⚠️ Driver WS closed");
-};
+    // 🚕 Ride request
+    if (msg.type === "ride.requested") {
+      if (currentRide) return;
+
+      currentRide = {
+        ride_id: msg.ride_id,
+        pickup_lat: msg.pickup_lat,
+        pickup_lng: msg.pickup_lng,
+        dropoff_lat: msg.dropoff_lat,
+        dropoff_lng: msg.dropoff_lng,
+        fare: msg.fare
+      };
+
+      showRide(currentRide);
+    }
+  };
+
+  ws.onclose = () => {
+    console.warn("⚠️ Driver WS closed — reconnecting");
+    driverStatus.innerText = "⚠️ Reconnecting…";
+
+    reconnectTimer = setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => {
+    ws.close();
+  };
+}
+
+connectWS();
 
 /* =========================
    LIVE GPS
@@ -108,7 +134,7 @@ function showRide(ride) {
 }
 
 /* =========================
-   ACCEPT RIDE ✅ FIXED
+   ACCEPT RIDE
 ========================= */
 acceptBtn.onclick = async () => {
   if (!currentRide) return;
