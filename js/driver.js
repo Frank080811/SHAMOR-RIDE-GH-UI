@@ -1,5 +1,5 @@
 /* =========================
-   CONFIG
+   CONFIG (DRIVER ONLY)
 ========================= */
 import {
   API_BASE,
@@ -11,21 +11,23 @@ import {
 /* =========================
    AUTH (DRIVER ONLY)
 ========================= */
-const token = getDriverToken();
-if (!token) {
-  alert("Driver login required");
-  location.href = "/login.html";
+function getValidDriverToken() {
+  const t = getDriverToken();
+  if (!t) return null;
+
+  try {
+    const payload = JSON.parse(atob(t.split(".")[1]));
+    if (payload.role !== "driver") throw new Error("Wrong role");
+    return t;
+  } catch {
+    localStorage.removeItem("driver_token");
+    return null;
+  }
 }
 
-// 🔒 HARD ROLE CHECK (CRITICAL)
-try {
-  const payload = JSON.parse(atob(token.split(".")[1]));
-  if (payload.role !== "driver") {
-    throw new Error("Invalid role");
-  }
-} catch {
-  localStorage.removeItem("driver_token");
-  alert("Invalid driver session");
+let token = getValidDriverToken();
+if (!token) {
+  alert("Driver login required");
   location.href = "/login.html";
 }
 
@@ -60,12 +62,19 @@ map = L.map("map").setView([6.8970, -1.5250], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
-   DRIVER WEBSOCKET (FINAL)
+   DRIVER WEBSOCKET
 ========================= */
 function connectWS() {
   if (ws) ws.close();
   if (reconnectTimer) clearTimeout(reconnectTimer);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
+
+  token = getValidDriverToken();
+  if (!token) {
+    alert("Driver session expired");
+    location.href = "/login.html";
+    return;
+  }
 
   ws = new WebSocket(
     `${WS_BASE}/tracking/ws/driver?token=${token}`
@@ -75,7 +84,6 @@ function connectWS() {
     console.log("✅ Driver WebSocket connected");
     driverStatus.innerText = "📡 Online — waiting for rides";
 
-    // 🔁 Heartbeat (keeps Render alive)
     heartbeatTimer = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send("ping");
@@ -84,7 +92,13 @@ function connectWS() {
   };
 
   ws.onmessage = e => {
-    const msg = JSON.parse(e.data);
+    let msg;
+    try {
+      msg = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+
     console.log("📩 WS message:", msg);
 
     if (msg.type !== "ride.requested") return;
@@ -164,7 +178,7 @@ function showRide(ride) {
 }
 
 /* =========================
-   ACCEPT RIDE
+   ACCEPT / START / END RIDE
 ========================= */
 acceptBtn.onclick = async () => {
   if (!currentRide) return;
@@ -179,9 +193,6 @@ acceptBtn.onclick = async () => {
   driverStatus.innerText = "🧭 Heading to pickup";
 };
 
-/* =========================
-   START RIDE
-========================= */
 startBtn.onclick = async () => {
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/start`, {
     method: "POST",
@@ -193,9 +204,6 @@ startBtn.onclick = async () => {
   driverStatus.innerText = "🚦 Trip started";
 };
 
-/* =========================
-   END RIDE
-========================= */
 endBtn.onclick = async () => {
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/end`, {
     method: "POST",
@@ -226,7 +234,7 @@ setInterval(loadEarnings, 20000);
 loadEarnings();
 
 /* =========================
-   RESET
+   RESET / TOAST
 ========================= */
 function resetState() {
   currentRide = null;
