@@ -1,13 +1,29 @@
 /* =========================
-   auth.js (FINAL — STABLE & ROLE SAFE)
+   auth.js (FINAL — SAFE & ROLE ISOLATED)
 ========================= */
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded — v6 (fixed)");
+console.log("auth.js loaded — v7 (production safe)");
 
-// =========================
-// HELPERS
-// =========================
+/* =========================
+   PAGE CONTEXT GUARD
+========================= */
+/**
+ * auth.js should ONLY be active on index.html
+ * On other pages, it must be inert
+ */
+const IS_AUTH_PAGE =
+  location.pathname.endsWith("/") ||
+  location.pathname.endsWith("/index.html");
+
+if (!IS_AUTH_PAGE) {
+  // Do NOT attach auth handlers outside login page
+  console.log("auth.js inactive on this page");
+}
+
+/* =========================
+   HELPERS
+========================= */
 function get(id) {
   return document.getElementById(id);
 }
@@ -30,165 +46,73 @@ async function safeJson(res) {
   }
 }
 
-// =========================
-// CLEAN SESSION (CRITICAL)
-// =========================
+/* =========================
+   CLEAN SESSION (MANUAL ONLY)
+========================= */
 function clearAllAuth() {
   localStorage.removeItem("driver_token");
   localStorage.removeItem("rider_token");
   localStorage.removeItem("admin_token");
 }
 
-// =========================
-// UI HELPERS
-// =========================
-window.togglePassword = (id) => {
-  const el = get(id);
-  if (el) el.type = el.type === "password" ? "text" : "password";
-};
-
-window.showLogin = () => {
-  get("tabs")?.classList.remove("signup");
-  get("loginForm")?.classList.add("active");
-  get("signupForm")?.classList.remove("active");
-};
-
-window.showSignup = () => {
-  get("tabs")?.classList.add("signup");
-  get("signupForm")?.classList.add("active");
-  get("loginForm")?.classList.remove("active");
-};
-
-// =========================
-// LOGIN (FIXED)
-// =========================
-window.login = async () => {
-  const identifier = get("loginIdentifier")?.value.trim();
-  const password = get("loginPassword")?.value;
-
-  if (!identifier || !password) {
-    alert("Email/Phone and password required");
-    return;
-  }
-
-  // 🔒 Clear any stale session before login
-  clearAllAuth();
-
-  const payload = {
-    email: identifier, // backend supports email/phone
-    password,
+/* =========================
+   UI HELPERS (AUTH PAGE ONLY)
+========================= */
+if (IS_AUTH_PAGE) {
+  window.togglePassword = (id) => {
+    const el = get(id);
+    if (el) el.type = el.type === "password" ? "text" : "password";
   };
 
-  let res;
-  try {
-    res = await fetch(`${API_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    alert("Network error");
-    return;
-  }
+  window.showLogin = () => {
+    get("tabs")?.classList.remove("signup");
+    get("loginForm")?.classList.add("active");
+    get("signupForm")?.classList.remove("active");
+  };
 
-  const data = await safeJson(res);
+  window.showSignup = () => {
+    get("tabs")?.classList.add("signup");
+    get("signupForm")?.classList.add("active");
+    get("loginForm")?.classList.remove("active");
+  };
+}
 
-  if (!res.ok || !data?.access_token) {
-    alert(data?.detail || "Login failed");
-    return;
-  }
+/* =========================
+   LOGIN (AUTH PAGE ONLY)
+========================= */
+if (IS_AUTH_PAGE) {
+  window.login = async () => {
+    const identifier = get("loginIdentifier")?.value.trim();
+    const password = get("loginPassword")?.value;
 
-  const token = data.access_token;
-  const payloadJwt = parseJwt(token);
-  const role = payloadJwt?.role;
+    if (!identifier || !password) {
+      alert("Email/Phone and password required");
+      return;
+    }
 
-  if (!role) {
-    alert("Invalid login token");
-    return;
-  }
+    // 🔒 Clear stale session ONLY when user explicitly logs in
+    clearAllAuth();
 
-  // =========================
-  // ROLE-ISOLATED STORAGE + REDIRECT
-  // =========================
-
-  if (role === "driver") {
-    localStorage.setItem("driver_token", token);
-
-    let statusRes;
+    let res;
     try {
-      statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
-        headers: { Authorization: `Bearer ${token}` },
+      res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: identifier,
+          password
+        }),
       });
     } catch {
-      alert("Unable to verify driver status");
+      alert("Network error");
       return;
     }
 
-    if (!statusRes.ok) {
-      alert("Driver status check failed");
-      console.error(await statusRes.text());
+    const data = await safeJson(res);
+
+    if (!res.ok || !data?.access_token) {
+      alert(data?.detail || "Login failed");
       return;
     }
 
-    const statusData = await safeJson(statusRes);
-    const status = statusData?.status;
-
-    if (status === "approved") location.href = "driver.html";
-    else if (status === "pending" || status === "approved_pending_activation")
-      location.href = "driver-pending.html";
-    else if (status === "rejected") location.href = "driver-rejected.html";
-    else location.href = "driver-onboarding.html";
-
-    return;
-  }
-
-  if (role === "rider") {
-    localStorage.setItem("rider_token", token);
-    location.href = "rider.html";
-    return;
-  }
-
-  if (role === "admin") {
-    localStorage.setItem("admin_token", token);
-    location.href = "admin.html";
-    return;
-  }
-
-  alert("Unknown user role");
-};
-
-// =========================
-// SIGNUP
-// =========================
-window.signup = async () => {
-  const email = get("emailInput")?.value.trim();
-  const full_name = get("full_nameInput")?.value.trim();
-  const password = get("passwordInput")?.value;
-  const role = get("roleSelect")?.value;
-
-  if (!email || !full_name || !password || !role) {
-    alert("All fields required");
-    return;
-  }
-
-  let res;
-  try {
-    res = await fetch(`${API_BASE}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, full_name, password, role }),
-    });
-  } catch {
-    alert("Network error");
-    return;
-  }
-
-  const data = await safeJson(res);
-
-  if (!res.ok) {
-    alert(data?.detail || "Signup failed");
-    return;
-  }
-
-  alert("Account created! Check your email to verify.");
-};
+    const token = data.access_token_
