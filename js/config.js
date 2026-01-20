@@ -14,11 +14,10 @@ export const API_BASE = IS_PROD
   ? "https://shamor-ride-gh.onrender.com"
   : "http://localhost:8000";
 
-export const API_BASE_URL = API_BASE; // alias for consistency
+export const API_BASE_URL = API_BASE;
 
 /* =========================
    WEBSOCKET BASE URL
-   🔥 AUTO FIXES ws / wss
 ========================= */
 export const WS_BASE = IS_PROD
   ? "wss://shamor-ride-gh.onrender.com"
@@ -35,34 +34,48 @@ export const PAYSTACK_PUBLIC_KEY =
 ========================= */
 export const IS_TESTING = !IS_PROD;
 
-/* =========================
-   AUTH TOKEN HELPERS
-========================= */
-export function getToken() {
-  return localStorage.getItem("access_token");
+/* ======================================================
+   🔐 AUTH TOKEN HELPERS (ROLE-SAFE)
+   🚫 NO shared access_token anymore
+====================================================== */
+
+/* ---------- DRIVER ---------- */
+export function getDriverToken() {
+  return localStorage.getItem("driver_token");
 }
 
+/* ---------- RIDER ---------- */
+export function getRiderToken() {
+  return localStorage.getItem("rider_token");
+}
+
+/* ---------- REFRESH (OPTIONAL / SHARED) ---------- */
 export function getRefreshToken() {
   return localStorage.getItem("refresh_token");
 }
 
-/* =========================
-   AUTH HEADER HELPERS
-========================= */
-export function authHeaders(extra = {}) {
-  const token = getToken();
+/* ======================================================
+   🔑 AUTH HEADERS (ROLE-AWARE)
+====================================================== */
+
+/* ---------- DRIVER HEADERS ---------- */
+export function authDriver(extra = {}) {
+  const token = getDriverToken();
 
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    "Content-Type": "application/json",
     ...extra,
   };
 }
 
-/* =========================
-   JSON AUTH HEADERS (COMMON)
-========================= */
-export function auth() {
-  return authHeaders({
+/* ---------- RIDER HEADERS ---------- */
+export function authRider(extra = {}) {
+  const token = getRiderToken();
+
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     "Content-Type": "application/json",
-  });
+    ...extra,
+  };
 }

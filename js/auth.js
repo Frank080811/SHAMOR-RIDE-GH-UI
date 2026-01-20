@@ -1,6 +1,6 @@
 import { API_BASE } from "./config.js";
 
-console.log("auth.js loaded — v2");
+console.log("auth.js loaded — v3 (role-isolated)");
 
 // =========================
 // HELPERS
@@ -28,6 +28,17 @@ async function safeJson(res) {
 }
 
 // =========================
+// CLEAN SESSION (CRITICAL)
+// =========================
+function clearAllAuth() {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("driver_token");
+  localStorage.removeItem("rider_token");
+  localStorage.removeItem("admin_token");
+}
+
+// =========================
 // UI HELPERS
 // =========================
 window.togglePassword = (id) => {
@@ -48,7 +59,7 @@ window.showSignup = () => {
 };
 
 // =========================
-// LOGIN
+// LOGIN (ROLE SAFE)
 // =========================
 window.login = async () => {
   const email = get("loginEmail").value.trim();
@@ -58,6 +69,8 @@ window.login = async () => {
     alert("Email and password required");
     return;
   }
+
+  clearAllAuth(); // 🔥 VERY IMPORTANT
 
   let res;
   try {
@@ -73,23 +86,25 @@ window.login = async () => {
 
   const data = await safeJson(res);
 
-  if (!res.ok) {
+  if (!res.ok || !data?.access_token) {
     alert(data?.detail || "Login failed");
     return;
   }
 
-  if (!data?.access_token) {
-    alert("Invalid server response");
-    return;
-  }
-
-  localStorage.setItem("access_token", data.access_token);
-  localStorage.setItem("refresh_token", data.refresh_token);
-
   const payload = parseJwt(data.access_token);
   const role = payload?.role;
 
+  if (!role) {
+    alert("Invalid token received");
+    return;
+  }
+
+  // =========================
+  // STORE ROLE-SPECIFIC TOKEN
+  // =========================
   if (role === "driver") {
+    localStorage.setItem("driver_token", data.access_token);
+
     const statusRes = await fetch(`${API_BASE}/drivers/me/status`, {
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
@@ -104,12 +119,19 @@ window.login = async () => {
     return;
   }
 
+  if (role === "rider") {
+    localStorage.setItem("rider_token", data.access_token);
+    location.href = "rider.html";
+    return;
+  }
+
   if (role === "admin") {
+    localStorage.setItem("admin_token", data.access_token);
     location.href = "admin.html";
     return;
   }
 
-  location.href = "rider.html";
+  alert("Unknown user role");
 };
 
 // =========================

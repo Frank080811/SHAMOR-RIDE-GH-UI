@@ -1,10 +1,33 @@
 /* =========================
    CONFIG
 ========================= */
-import { API_BASE, WS_BASE, getToken, auth } from "./config.js";
+import {
+  API_BASE,
+  WS_BASE,
+  getDriverToken,
+  authDriver
+} from "./config.js";
 
-const token = getToken();
-if (!token) location.href = "/login.html";
+/* =========================
+   AUTH (DRIVER ONLY)
+========================= */
+const token = getDriverToken();
+if (!token) {
+  alert("Driver login required");
+  location.href = "/login.html";
+}
+
+// 🔒 HARD ROLE CHECK (CRITICAL)
+try {
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  if (payload.role !== "driver") {
+    throw new Error("Invalid role");
+  }
+} catch {
+  localStorage.removeItem("driver_token");
+  alert("Invalid driver session");
+  location.href = "/login.html";
+}
 
 /* =========================
    DOM
@@ -44,13 +67,15 @@ function connectWS() {
   if (reconnectTimer) clearTimeout(reconnectTimer);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
 
-  ws = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
+  ws = new WebSocket(
+    `${WS_BASE}/tracking/ws/driver?token=${token}`
+  );
 
   ws.onopen = () => {
     console.log("✅ Driver WebSocket connected");
     driverStatus.innerText = "📡 Online — waiting for rides";
 
-    // 🔁 Start heartbeat ONLY after connection opens
+    // 🔁 Heartbeat (keeps Render alive)
     heartbeatTimer = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send("ping");
@@ -91,7 +116,7 @@ function connectWS() {
 connectWS();
 
 /* =========================
-   LIVE GPS
+   LIVE GPS (NON-BLOCKING)
 ========================= */
 navigator.geolocation.watchPosition(
   pos => {
@@ -109,16 +134,16 @@ navigator.geolocation.watchPosition(
 
     fetch(`${API_BASE}/tracking/driver`, {
       method: "POST",
-      headers: auth(),
+      headers: authDriver(),
       body: JSON.stringify({
         lat: latitude,
         lng: longitude,
         heading,
         speed
       })
-    });
+    }).catch(() => {});
   },
-  () => showToast("📡 GPS error"),
+  () => showToast("📡 GPS unavailable"),
   { enableHighAccuracy: true }
 );
 
@@ -146,7 +171,7 @@ acceptBtn.onclick = async () => {
 
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/accept`, {
     method: "POST",
-    headers: auth()
+    headers: authDriver()
   });
 
   rideCard.classList.add("hidden");
@@ -160,7 +185,7 @@ acceptBtn.onclick = async () => {
 startBtn.onclick = async () => {
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/start`, {
     method: "POST",
-    headers: auth()
+    headers: authDriver()
   });
 
   startBtn.classList.add("hidden");
@@ -174,7 +199,7 @@ startBtn.onclick = async () => {
 endBtn.onclick = async () => {
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/end`, {
     method: "POST",
-    headers: auth()
+    headers: authDriver()
   });
 
   showToast("✅ Trip completed");
@@ -187,8 +212,9 @@ endBtn.onclick = async () => {
 async function loadEarnings() {
   const res = await fetch(
     `${API_BASE}/tracking/driver/earnings`,
-    { headers: auth() }
+    { headers: authDriver() }
   );
+
   if (!res.ok) return;
 
   const data = await res.json();

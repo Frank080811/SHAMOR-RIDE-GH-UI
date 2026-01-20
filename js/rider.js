@@ -1,13 +1,33 @@
 /* =========================
-   CONFIG
+   CONFIG   rider.js
 ========================= */
-import { API_BASE, WS_BASE } from "./config.js";
+import {
+  API_BASE,
+  WS_BASE,
+  getRiderToken,
+  authRider
+} from "./config.js";
 
 /* =========================
    AUTH (RIDER ONLY)
 ========================= */
-const token = localStorage.getItem("access_token");
-if (!token) location.href = "/login.html";
+const token = getRiderToken();
+if (!token) {
+  alert("Rider login required");
+  location.href = "/login.html";
+}
+
+// 🔒 HARD ROLE CHECK (CRITICAL)
+try {
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  if (payload.role !== "rider") {
+    throw new Error("Invalid role");
+  }
+} catch {
+  localStorage.removeItem("rider_token");
+  alert("Invalid rider session");
+  location.href = "/login.html";
+}
 
 /* =========================
    UI STATE MACHINE
@@ -76,9 +96,11 @@ async function searchLocations(query, container, onSelect) {
   if (query.length < 2) return;
 
   const res = await fetch(`${API_BASE}/locations/search?q=${query}`);
-  const data = await res.json();
+  if (!res.ok) return;
 
+  const data = await res.json();
   container.innerHTML = "";
+
   data.forEach(loc => {
     const div = document.createElement("div");
     div.textContent = loc.name;
@@ -126,8 +148,8 @@ async function tryPrepareRide() {
 
   const res = await fetch(
     `https://router.project-osrm.org/route/v1/driving/` +
-    `${selectedPickup.longitude},${selectedPickup.latitude};` +
-    `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
+      `${selectedPickup.longitude},${selectedPickup.latitude};` +
+      `${selectedDropoff.longitude},${selectedDropoff.latitude}?overview=false`
   );
 
   const data = await res.json();
@@ -186,10 +208,7 @@ confirmBtn.onclick = async () => {
 
   const res = await fetch(`${API_BASE}/rides/request`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
+    headers: authRider(),
     body: JSON.stringify({
       pickup_lat: selectedPickup.latitude,
       pickup_lng: selectedPickup.longitude,
@@ -216,7 +235,9 @@ function showDriverCard(driver) {
 /* =========================
    WEBSOCKET (RIDER)
 ========================= */
-const ws = new WebSocket(`${WS_BASE}/tracking/ws/rider?token=${token}`);
+const ws = new WebSocket(
+  `${WS_BASE}/tracking/ws/rider?token=${token}`
+);
 
 ws.onmessage = e => {
   const msg = JSON.parse(e.data);
