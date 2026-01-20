@@ -236,8 +236,9 @@ function showDriverCard(driver) {
    WEBSOCKET (RIDER)
 ========================= */
 const ws = new WebSocket(
-  `${WS_BASE}/tracking/ws/rider?token=${token}`
+  `${WS_BASE}/tracking/ws/driver?token=${getDriverToken()}`
 );
+
 
 ws.onmessage = e => {
   const msg = JSON.parse(e.data);
