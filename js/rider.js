@@ -1,5 +1,5 @@
 /* =========================
-   CONFIG   rider.js
+   rider.js (FIXED & STABLE)
 ========================= */
 import {
   API_BASE,
@@ -9,22 +9,26 @@ import {
 } from "./config.js";
 
 /* =========================
-   AUTH (RIDER ONLY)
+   AUTH (RIDER ONLY — SAFE)
 ========================= */
-const token = getRiderToken();
-if (!token) {
-  alert("Rider login required");
-  location.href = "/login.html";
+function getValidRiderToken() {
+  const t = getRiderToken();
+  if (!t) return null;
+
+  try {
+    const payload = JSON.parse(atob(t.split(".")[1]));
+    if (payload.role !== "rider") throw new Error("Wrong role");
+    return t;
+  } catch {
+    localStorage.removeItem("rider_token");
+    return null;
+  }
 }
 
-// 🔒 HARD ROLE CHECK
-try {
-  const payload = JSON.parse(atob(token.split(".")[1]));
-  if (payload.role !== "rider") throw new Error("Invalid role");
-} catch {
-  localStorage.removeItem("rider_token");
-  alert("Invalid rider session");
-  location.href = "/login.html";
+const token = getValidRiderToken();
+if (!token) {
+  location.replace("index.html");
+  throw new Error("Rider not authenticated");
 }
 
 /* =========================
@@ -47,7 +51,6 @@ let selectedPickup = null;
 let selectedDropoff = null;
 let assignedDriver = null;
 let activeRideId = null;
-let pickupScanInterval = null;
 
 /* =========================
    DOM
@@ -60,7 +63,6 @@ const confirmBtn = document.getElementById("confirmBtn");
 const rideInfo = document.getElementById("rideInfo");
 const distanceText = document.getElementById("distanceText");
 const fareText = document.getElementById("fareText");
-const driverEtaText = document.getElementById("driverEtaText");
 const driverCard = document.getElementById("driverCard");
 const driverName = document.getElementById("driverName");
 const driverRating = document.getElementById("driverRating");
@@ -198,7 +200,7 @@ function showDriverCard(driver) {
 }
 
 /* =========================
-   WEBSOCKET (RIDER — FIXED)
+   WEBSOCKET (RIDER)
 ========================= */
 const ws = new WebSocket(
   `${WS_BASE}/tracking/ws/rider?token=${token}`
@@ -210,17 +212,15 @@ ws.onmessage = e => {
 
   if (msg.type === "ride.accepted") {
     uiState = UI_STATE.ASSIGNED;
-    assignedDriver = msg.driver;
     showToast("🚗 Driver accepted your ride");
-    showDriverCard(assignedDriver);
+    showDriverCard(msg.driver);
   }
 
-  if (msg.type === "driver_location" && assignedDriver) {
-    const { lat, lng } = msg;
+  if (msg.type === "driver_location" && msg.lat && msg.lng) {
     if (!assignedDriverMarker) {
-      assignedDriverMarker = L.marker([lat, lng]).addTo(map);
+      assignedDriverMarker = L.marker([msg.lat, msg.lng]).addTo(map);
     } else {
-      assignedDriverMarker.setLatLng([lat, lng]);
+      assignedDriverMarker.setLatLng([msg.lat, msg.lng]);
     }
   }
 };
