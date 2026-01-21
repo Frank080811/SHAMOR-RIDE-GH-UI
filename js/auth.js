@@ -9,9 +9,11 @@ console.log("auth.js loaded — v10 (single-token, stable)");
    PAGE GUARD
 ========================= */
 const IS_AUTH_PAGE = location.pathname.endsWith("/auth.html");
+
 if (!IS_AUTH_PAGE) {
   console.log("auth.js inactive on this page");
-  export {}; // hard stop
+  // ✅ DO NOTHING — NEVER export in browser JS
+  // This safely prevents execution without breaking the file
 }
 
 /* =========================
@@ -35,8 +37,7 @@ function isEmail(v) {
 
 function normalizePhone(v) {
   v = v.replace(/\s+/g, "");
-  if (v.startsWith("0")) return "233" + v.slice(1);
-  return v;
+  return v.startsWith("0") ? "233" + v.slice(1) : v;
 }
 
 async function safeJson(res) {
@@ -58,7 +59,7 @@ function clearAuth() {
 }
 
 /* =========================
-   UI: TABS
+   UI: TABS (AUTH PAGE ONLY)
 ========================= */
 const loginTab = get("loginTab");
 const signupTab = get("signupTab");
@@ -66,28 +67,30 @@ const loginForm = get("loginForm");
 const signupForm = get("signupForm");
 
 function showLogin() {
-  loginTab.classList.add("active");
-  signupTab.classList.remove("active");
-  loginForm.classList.add("active");
-  signupForm.classList.remove("active");
+  loginTab?.classList.add("active");
+  signupTab?.classList.remove("active");
+  loginForm?.classList.add("active");
+  signupForm?.classList.remove("active");
 }
 
 function showSignup() {
-  signupTab.classList.add("active");
-  loginTab.classList.remove("active");
-  signupForm.classList.add("active");
-  loginForm.classList.remove("active");
+  signupTab?.classList.add("active");
+  loginTab?.classList.remove("active");
+  signupForm?.classList.add("active");
+  loginForm?.classList.remove("active");
 }
 
-loginTab.onclick = showLogin;
-signupTab.onclick = showSignup;
+loginTab && (loginTab.onclick = showLogin);
+signupTab && (signupTab.onclick = showSignup);
 
 /* =========================
    LOGIN
 ========================= */
 window.login = async () => {
-  const identifier = get("loginIdentifier").value.trim();
-  const password = get("loginPassword").value;
+  if (!IS_AUTH_PAGE) return;
+
+  const identifier = get("loginIdentifier")?.value.trim();
+  const password = get("loginPassword")?.value;
 
   if (!identifier || !password) {
     alert("Email/Phone and password required");
@@ -160,10 +163,12 @@ window.login = async () => {
    SIGNUP
 ========================= */
 window.signup = async () => {
-  const full_name = get("signupFullName").value.trim();
-  const identifier = get("signupIdentifier").value.trim();
-  const password = get("signupPassword").value;
-  const role = get("signupRole").value;
+  if (!IS_AUTH_PAGE) return;
+
+  const full_name = get("signupFullName")?.value.trim();
+  const identifier = get("signupIdentifier")?.value.trim();
+  const password = get("signupPassword")?.value;
+  const role = get("signupRole")?.value;
 
   if (!full_name || !identifier || !password || !role) {
     alert("All fields required");
@@ -224,7 +229,9 @@ window.signup = async () => {
 /* =========================
    PHONE AUTO FORMAT
 ========================= */
-get("signupIdentifier").addEventListener("input", e => {
-  let v = e.target.value.replace(/\D/g, "");
-  if (v.startsWith("0")) e.target.value = "233" + v.slice(1);
-});
+const phoneInput = get("signupIdentifier");
+phoneInput &&
+  phoneInput.addEventListener("input", e => {
+    let v = e.target.value.replace(/\D/g, "");
+    if (v.startsWith("0")) e.target.value = "233" + v.slice(1);
+  });
