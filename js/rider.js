@@ -1,18 +1,13 @@
 /* =========================
-   rider.js (FINAL — STABLE)
+   rider.js (FINAL — SINGLE TOKEN)
 ========================= */
-import {
-  API_BASE,
-  WS_BASE,
-  getRiderToken,
-  authRider
-} from "./config.js";
+import { API_BASE, WS_BASE } from "./config.js";
 
 /* =========================
-   AUTH (RIDER ONLY)
+   AUTH (SINGLE SOURCE)
 ========================= */
 function getValidRiderToken() {
-  const t = getRiderToken();
+  const t = localStorage.getItem("access_token");
   if (!t) return null;
 
   try {
@@ -20,16 +15,25 @@ function getValidRiderToken() {
     if (payload.role !== "rider") throw new Error("Wrong role");
     return t;
   } catch {
-    localStorage.removeItem("rider_token");
+    localStorage.removeItem("access_token");
     return null;
   }
 }
 
 const token = getValidRiderToken();
 if (!token) {
-  alert("Rider login required");
-  location.replace("index.html");
+  location.replace("auth.html");
   throw new Error("Unauthorized rider");
+}
+
+/* =========================
+   AUTH HEADER
+========================= */
+function auth() {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 /* =========================
@@ -38,7 +42,7 @@ if (!token) {
 const UI_STATE = {
   IDLE: "idle",
   REQUESTED: "requested",
-  ASSIGNED: "assigned"
+  ASSIGNED: "assigned",
 };
 
 let uiState = UI_STATE.IDLE;
@@ -147,7 +151,7 @@ function setDropoff(loc) {
 }
 
 /* =========================
-   ROUTE + FARE
+   ROUTE + FARE (UI)
 ========================= */
 async function tryPrepareRide() {
   if (!selectedPickup || !selectedDropoff) return;
@@ -190,13 +194,13 @@ confirmBtn.onclick = async () => {
   try {
     const res = await fetch(`${API_BASE}/rides/request`, {
       method: "POST",
-      headers: authRider(),
+      headers: auth(),
       body: JSON.stringify({
         pickup_lat: selectedPickup.latitude,
         pickup_lng: selectedPickup.longitude,
         dropoff_lat: selectedDropoff.latitude,
-        dropoff_lng: selectedDropoff.longitude
-      })
+        dropoff_lng: selectedDropoff.longitude,
+      }),
     });
 
     const data = await res.json();

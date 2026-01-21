@@ -1,18 +1,13 @@
 /* =========================
-   DRIVER DASHBOARD (FINAL — RING + RIDER DETAILS)
+   DRIVER DASHBOARD (FINAL — SINGLE TOKEN)
 ========================= */
-import {
-  API_BASE,
-  WS_BASE,
-  getDriverToken,
-  authDriver
-} from "./config.js";
+import { API_BASE, WS_BASE } from "./config.js";
 
 /* =========================
-   AUTH
+   AUTH (SINGLE SOURCE)
 ========================= */
 function getValidDriverToken() {
-  const t = getDriverToken();
+  const t = localStorage.getItem("access_token");
   if (!t) return null;
 
   try {
@@ -20,15 +15,25 @@ function getValidDriverToken() {
     if (payload.role !== "driver") throw new Error("Wrong role");
     return t;
   } catch {
-    localStorage.removeItem("driver_token");
+    localStorage.removeItem("access_token");
     return null;
   }
 }
 
 let token = getValidDriverToken();
 if (!token) {
-  location.replace("index.html");
+  location.replace("auth.html");
   throw new Error("Driver not authenticated");
+}
+
+/* =========================
+   AUTH HEADER
+========================= */
+function auth() {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 /* =========================
@@ -77,7 +82,7 @@ function connectWS() {
 
   token = getValidDriverToken();
   if (!token) {
-    location.replace("index.html");
+    location.replace("auth.html");
     return;
   }
 
@@ -87,6 +92,7 @@ function connectWS() {
     console.log("✅ DRIVER WS CONNECTED");
     driverStatus.innerText = "📡 Online — waiting for rides";
 
+    // ✅ TEXT heartbeat (server expects receive_text)
     heartbeatTimer = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send("ping");
@@ -118,7 +124,7 @@ function connectWS() {
       dropoff_lat: msg.dropoff_lat,
       dropoff_lng: msg.dropoff_lng,
       fare: msg.fare,
-      rider: msg.rider // ✅ RIDER DETAILS
+      rider: msg.rider || null, // backend-safe
     };
 
     showRide(currentRide);
@@ -146,7 +152,7 @@ navigator.geolocation.watchPosition(
 
     if (!marker) {
       marker = L.marker([latitude, longitude], {
-        icon: L.divIcon({ html: "🚗", className: "car-marker" })
+        icon: L.divIcon({ html: "🚗", className: "car-marker" }),
       }).addTo(map);
     } else {
       marker.setLatLng([latitude, longitude]);
@@ -156,8 +162,8 @@ navigator.geolocation.watchPosition(
 
     fetch(`${API_BASE}/tracking/driver`, {
       method: "POST",
-      headers: authDriver(),
-      body: JSON.stringify({ lat: latitude, lng: longitude, heading, speed })
+      headers: auth(),
+      body: JSON.stringify({ lat: latitude, lng: longitude, heading, speed }),
     }).catch(() => {});
   },
   () => showToast("📡 GPS unavailable"),
@@ -195,7 +201,7 @@ acceptBtn.onclick = async () => {
 
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/accept`, {
     method: "POST",
-    headers: authDriver()
+    headers: auth(),
   });
 
   rideCard.classList.add("hidden");
@@ -206,7 +212,7 @@ acceptBtn.onclick = async () => {
 startBtn.onclick = async () => {
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/start`, {
     method: "POST",
-    headers: authDriver()
+    headers: auth(),
   });
 
   startBtn.classList.add("hidden");
@@ -217,7 +223,7 @@ startBtn.onclick = async () => {
 endBtn.onclick = async () => {
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/end`, {
     method: "POST",
-    headers: authDriver()
+    headers: auth(),
   });
 
   showToast("✅ Trip completed");
@@ -228,10 +234,9 @@ endBtn.onclick = async () => {
    EARNINGS
 ========================= */
 async function loadEarnings() {
-  const res = await fetch(
-    `${API_BASE}/tracking/driver/earnings`,
-    { headers: authDriver() }
-  );
+  const res = await fetch(`${API_BASE}/tracking/driver/earnings`, {
+    headers: auth(),
+  });
   if (!res.ok) return;
 
   const data = await res.json();
@@ -243,7 +248,7 @@ setInterval(loadEarnings, 20000);
 loadEarnings();
 
 /* =========================
-   RESET / HELPERS
+   HELPERS
 ========================= */
 function stopRing() {
   ringAudio.pause();

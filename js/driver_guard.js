@@ -1,16 +1,27 @@
 // js/driver_guard.js
-import { API_BASE, getDriverToken } from "./config.js";
+import { API_BASE } from "./config.js";
+
+/**
+ * Driver page guard
+ * Enforces:
+ * - logged in
+ * - role === driver
+ * - correct onboarding status
+ *
+ * Uses SINGLE SOURCE OF TRUTH:
+ *   localStorage.access_token
+ */
 
 export async function enforceDriverFlow() {
-  const token = getDriverToken();
+  const token = localStorage.getItem("access_token");
 
-  // 🔒 No driver token → login
+  // 🚫 Not logged in
   if (!token) {
-    location.replace("index.html");
+    location.replace("auth.html");
     return;
   }
 
-  // 🔒 HARD ROLE CHECK
+  // 🔒 HARD ROLE CHECK (frontend)
   let payload;
   try {
     payload = JSON.parse(atob(token.split(".")[1]));
@@ -18,12 +29,12 @@ export async function enforceDriverFlow() {
       throw new Error("Not a driver");
     }
   } catch {
-    localStorage.removeItem("driver_token");
-    location.replace("index.html");
+    localStorage.removeItem("access_token");
+    location.replace("auth.html");
     return;
   }
 
-  // 🔍 Verify driver onboarding status from backend
+  // 🔍 Verify driver status from backend (SOURCE OF TRUTH)
   let res;
   try {
     res = await fetch(`${API_BASE}/drivers/me/status`, {
@@ -32,19 +43,20 @@ export async function enforceDriverFlow() {
       },
     });
   } catch {
-    location.replace("index.html");
+    location.replace("auth.html");
     return;
   }
 
   if (!res.ok) {
-    location.replace("index.html");
+    location.replace("auth.html");
     return;
   }
 
   const data = await res.json();
+  const status = String(data.status || "").toLowerCase();
 
-  // 🚦 Enforce correct driver flow
-  switch (data.status) {
+  // 🚦 Enforce correct flow
+  switch (status) {
     case "not_started":
     case "in_progress":
       location.replace("driver-onboarding.html");
@@ -64,6 +76,6 @@ export async function enforceDriverFlow() {
       break;
 
     default:
-      location.replace("login.html");
+      location.replace("auth.html");
   }
 }
