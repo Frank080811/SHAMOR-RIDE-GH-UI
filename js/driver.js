@@ -1,30 +1,18 @@
 /* =========================
-   DRIVER DASHBOARD (FINAL — SINGLE TOKEN)
+   DRIVER DASHBOARD (FINAL — SINGLE TOKEN + DRIVER GUARD)
 ========================= */
 import { API_BASE, WS_BASE } from "./config.js";
+import { enforceDriverFlow } from "./driver_guard.js";
 
 /* =========================
-   AUTH (SINGLE SOURCE)
+   DRIVER GUARD (MANDATORY)
 ========================= */
-function getValidDriverToken() {
-  const t = localStorage.getItem("access_token");
-  if (!t) return null;
+await enforceDriverFlow();
 
-  try {
-    const payload = JSON.parse(atob(t.split(".")[1]));
-    if (payload.role !== "driver") throw new Error("Wrong role");
-    return t;
-  } catch {
-    localStorage.removeItem("access_token");
-    return null;
-  }
-}
-
-let token = getValidDriverToken();
-if (!token) {
-  location.replace("auth.html");
-  throw new Error("Driver not authenticated");
-}
+/* =========================
+   TOKEN (PASSIVE READ ONLY)
+========================= */
+const token = localStorage.getItem("access_token");
 
 /* =========================
    AUTH HEADER
@@ -57,7 +45,6 @@ const toast = document.getElementById("toast");
 let map, marker;
 let currentRide = null;
 let ws = null;
-let reconnectTimer = null;
 let heartbeatTimer = null;
 
 /* =========================
@@ -69,34 +56,21 @@ ringAudio.loop = true;
 /* =========================
    MAP INIT
 ========================= */
-map = L.map("map").setView([6.8970, -1.5250], 13);
+map = L.map("map").setView([6.897, -1.525], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* =========================
    DRIVER WEBSOCKET
 ========================= */
 function connectWS() {
-  if (ws) ws.close();
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  if (heartbeatTimer) clearInterval(heartbeatTimer);
-
-  token = getValidDriverToken();
-  if (!token) {
-    location.replace("auth.html");
-    return;
-  }
-
   ws = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
 
   ws.onopen = () => {
     console.log("✅ DRIVER WS CONNECTED");
     driverStatus.innerText = "📡 Online — waiting for rides";
 
-    // ✅ TEXT heartbeat (server expects receive_text)
     heartbeatTimer = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send("ping");
-      }
+      if (ws.readyState === WebSocket.OPEN) ws.send("ping");
     }, 20000);
   };
 
@@ -108,34 +82,18 @@ function connectWS() {
       return;
     }
 
-    console.log("📩 DRIVER EVENT:", msg);
+    if (msg.type !== "ride.requested" || currentRide) return;
 
-    if (msg.type !== "ride.requested") return;
-    if (currentRide) return;
-
-    // 🔔 RING
     ringAudio.currentTime = 0;
     ringAudio.play().catch(() => {});
 
-    currentRide = {
-      ride_id: msg.ride_id,
-      pickup_lat: msg.pickup_lat,
-      pickup_lng: msg.pickup_lng,
-      dropoff_lat: msg.dropoff_lat,
-      dropoff_lng: msg.dropoff_lng,
-      fare: msg.fare,
-      rider: msg.rider || null, // backend-safe
-    };
-
-    showRide(currentRide);
+    currentRide = msg;
+    showRide(msg);
   };
 
   ws.onclose = () => {
-    console.warn("⚠️ DRIVER WS CLOSED — reconnecting");
-    driverStatus.innerText = "⚠️ Reconnecting…";
-
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    reconnectTimer = setTimeout(connectWS, 3000);
+    clearInterval(heartbeatTimer);
+    setTimeout(connectWS, 3000);
   };
 
   ws.onerror = () => ws.close();
@@ -158,8 +116,6 @@ navigator.geolocation.watchPosition(
       marker.setLatLng([latitude, longitude]);
     }
 
-    map.setView([latitude, longitude], 15);
-
     fetch(`${API_BASE}/tracking/driver`, {
       method: "POST",
       headers: auth(),
@@ -171,22 +127,15 @@ navigator.geolocation.watchPosition(
 );
 
 /* =========================
-   SHOW RIDE (WITH RIDER INFO)
+   SHOW RIDE
 ========================= */
-function showRide(ride) {
+function showRide(r) {
   rideInfo.innerHTML = `
-    🚕 <b>New Ride Request</b><br><br>
-
-    👤 <b>Rider:</b> ${ride.rider?.name || "Unknown"}<br>
-    📞 <b>Phone:</b> ${ride.rider?.phone || "—"}<br>
-    ⭐ <b>Rating:</b> ${ride.rider?.rating ?? "4.5"}<br><br>
-
-    📍 <b>Pickup:</b> ${ride.pickup_lat}, ${ride.pickup_lng}<br>
-    🏁 <b>Dropoff:</b> ${ride.dropoff_lat}, ${ride.dropoff_lng}<br><br>
-
-    💰 <b>Fare:</b> ₵${ride.fare}
+    <b>New Ride</b><br><br>
+    Pickup: ${r.pickup_lat}, ${r.pickup_lng}<br>
+    Dropoff: ${r.dropoff_lat}, ${r.dropoff_lng}<br>
+    Fare: ₵${r.fare}
   `;
-
   rideCard.classList.remove("hidden");
   driverStatus.innerText = "🚕 Ride request received";
 }
@@ -196,7 +145,6 @@ function showRide(ride) {
 ========================= */
 acceptBtn.onclick = async () => {
   if (!currentRide) return;
-
   stopRing();
 
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/accept`, {
@@ -206,7 +154,6 @@ acceptBtn.onclick = async () => {
 
   rideCard.classList.add("hidden");
   startBtn.classList.remove("hidden");
-  driverStatus.innerText = "🧭 Heading to pickup";
 };
 
 startBtn.onclick = async () => {
@@ -217,7 +164,6 @@ startBtn.onclick = async () => {
 
   startBtn.classList.add("hidden");
   endBtn.classList.remove("hidden");
-  driverStatus.innerText = "🚦 Trip started";
 };
 
 endBtn.onclick = async () => {
@@ -226,7 +172,6 @@ endBtn.onclick = async () => {
     headers: auth(),
   });
 
-  showToast("✅ Trip completed");
   resetState();
 };
 

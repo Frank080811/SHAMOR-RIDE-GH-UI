@@ -2,31 +2,37 @@
 import { API_BASE } from "./config.js";
 
 /**
- * Driver page guard
+ * Driver page guard (FINAL — SAFE MULTI-PAGE)
+ *
  * Enforces:
  * - logged in
  * - role === driver
- * - correct onboarding status
+ * - correct page based on onboarding status
  *
- * Uses SINGLE SOURCE OF TRUTH:
+ * SINGLE SOURCE OF TRUTH:
  *   localStorage.access_token
  */
 
 export async function enforceDriverFlow() {
   const token = localStorage.getItem("access_token");
+  const currentPage = location.pathname.split("/").pop();
 
-  // 🚫 Not logged in
+  /* =========================
+     NOT LOGGED IN
+  ========================= */
   if (!token) {
     location.replace("auth.html");
     return;
   }
 
-  // 🔒 HARD ROLE CHECK (frontend)
+  /* =========================
+     FRONTEND ROLE CHECK
+  ========================= */
   let payload;
   try {
     payload = JSON.parse(atob(token.split(".")[1]));
     if (payload.role !== "driver") {
-      throw new Error("Not a driver");
+      throw new Error("Not driver");
     }
   } catch {
     localStorage.removeItem("access_token");
@@ -34,13 +40,13 @@ export async function enforceDriverFlow() {
     return;
   }
 
-  // 🔍 Verify driver status from backend (SOURCE OF TRUTH)
+  /* =========================
+     BACKEND STATUS CHECK
+  ========================= */
   let res;
   try {
     res = await fetch(`${API_BASE}/drivers/me/status`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
   } catch {
     location.replace("auth.html");
@@ -52,30 +58,42 @@ export async function enforceDriverFlow() {
     return;
   }
 
-  const data = await res.json();
-  const status = String(data.status || "").toLowerCase();
+  const { status } = await res.json();
+  const s = String(status || "").toLowerCase();
 
-  // 🚦 Enforce correct flow
-  switch (status) {
+  /* =========================
+     STATUS → PAGE MAPPING
+  ========================= */
+  let expectedPage;
+
+  switch (s) {
     case "not_started":
     case "in_progress":
-      location.replace("driver-onboarding.html");
+      expectedPage = "driver-onboarding.html";
       break;
 
     case "pending":
     case "approved_pending_activation":
-      location.replace("driver-pending.html");
+      expectedPage = "driver-pending.html";
       break;
 
     case "approved":
-      // ✅ allowed to stay on driver.html
+      expectedPage = "driver.html";
       break;
 
     case "rejected":
-      location.replace("driver-rejected.html");
+      expectedPage = "driver-rejected.html";
       break;
 
     default:
       location.replace("auth.html");
+      return;
+  }
+
+  /* =========================
+     ONLY REDIRECT IF NEEDED
+  ========================= */
+  if (currentPage !== expectedPage) {
+    location.replace(expectedPage);
   }
 }
