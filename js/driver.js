@@ -1,5 +1,5 @@
 /* =========================
-   DRIVER DASHBOARD (FINAL)
+   DRIVER DASHBOARD (FINAL — RING + RIDER DETAILS)
 ========================= */
 import {
   API_BASE,
@@ -27,8 +27,8 @@ function getValidDriverToken() {
 
 let token = getValidDriverToken();
 if (!token) {
-  alert("Driver login required");
-  location.href = "index.html";
+  location.replace("index.html");
+  throw new Error("Driver not authenticated");
 }
 
 /* =========================
@@ -56,7 +56,7 @@ let reconnectTimer = null;
 let heartbeatTimer = null;
 
 /* =========================
-   RING SOUND 🔔
+   🔔 RING SOUND
 ========================= */
 const ringAudio = new Audio("/sounds/ride-request.mp3");
 ringAudio.loop = true;
@@ -77,14 +77,11 @@ function connectWS() {
 
   token = getValidDriverToken();
   if (!token) {
-    alert("Driver session expired");
-    location.href = "index.html";
+    location.replace("index.html");
     return;
   }
 
-  ws = new WebSocket(
-    `${WS_BASE}/tracking/ws/driver?token=${token}`
-  );
+  ws = new WebSocket(`${WS_BASE}/tracking/ws/driver?token=${token}`);
 
   ws.onopen = () => {
     console.log("✅ DRIVER WS CONNECTED");
@@ -92,7 +89,7 @@ function connectWS() {
 
     heartbeatTimer = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send("ping"); // ✅ backend expects text
+        ws.send("ping");
       }
     }, 20000);
   };
@@ -110,6 +107,8 @@ function connectWS() {
     if (msg.type !== "ride.requested") return;
     if (currentRide) return;
 
+    // 🔔 RING
+    ringAudio.currentTime = 0;
     ringAudio.play().catch(() => {});
 
     currentRide = {
@@ -118,7 +117,8 @@ function connectWS() {
       pickup_lng: msg.pickup_lng,
       dropoff_lat: msg.dropoff_lat,
       dropoff_lng: msg.dropoff_lng,
-      fare: msg.fare
+      fare: msg.fare,
+      rider: msg.rider // ✅ RIDER DETAILS
     };
 
     showRide(currentRide);
@@ -165,15 +165,22 @@ navigator.geolocation.watchPosition(
 );
 
 /* =========================
-   SHOW RIDE
+   SHOW RIDE (WITH RIDER INFO)
 ========================= */
 function showRide(ride) {
   rideInfo.innerHTML = `
-    🚕 <b>New Ride Request</b><br>
-    Pickup: ${ride.pickup_lat}, ${ride.pickup_lng}<br>
-    Dropoff: ${ride.dropoff_lat}, ${ride.dropoff_lng}<br>
-    Fare: ₵${ride.fare}
+    🚕 <b>New Ride Request</b><br><br>
+
+    👤 <b>Rider:</b> ${ride.rider?.name || "Unknown"}<br>
+    📞 <b>Phone:</b> ${ride.rider?.phone || "—"}<br>
+    ⭐ <b>Rating:</b> ${ride.rider?.rating ?? "4.5"}<br><br>
+
+    📍 <b>Pickup:</b> ${ride.pickup_lat}, ${ride.pickup_lng}<br>
+    🏁 <b>Dropoff:</b> ${ride.dropoff_lat}, ${ride.dropoff_lng}<br><br>
+
+    💰 <b>Fare:</b> ₵${ride.fare}
   `;
+
   rideCard.classList.remove("hidden");
   driverStatus.innerText = "🚕 Ride request received";
 }
@@ -184,8 +191,7 @@ function showRide(ride) {
 acceptBtn.onclick = async () => {
   if (!currentRide) return;
 
-  ringAudio.pause();
-  ringAudio.currentTime = 0;
+  stopRing();
 
   await fetch(`${API_BASE}/rides/${currentRide.ride_id}/accept`, {
     method: "POST",
@@ -237,9 +243,15 @@ setInterval(loadEarnings, 20000);
 loadEarnings();
 
 /* =========================
-   RESET / TOAST
+   RESET / HELPERS
 ========================= */
+function stopRing() {
+  ringAudio.pause();
+  ringAudio.currentTime = 0;
+}
+
 function resetState() {
+  stopRing();
   currentRide = null;
   rideCard.classList.add("hidden");
   startBtn.classList.add("hidden");
